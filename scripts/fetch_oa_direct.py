@@ -116,8 +116,8 @@ def fetch_one(doi: str) -> tuple[str, dict, bytes | None]:
 
 def parse_keys() -> set[str] | None:
     """--key K (repeatable) / --keys-file F restrict the run to those keys and
-    lift the genus/clade scope filter (registry-only references have none).
-    With no keys, the default scope applies. Unknown flags are an error, so a
+    run only those keys. With no keys, every bib key with a DOI and no PDF is
+    tried (whole-bib scope). Unknown flags are an error, so a
     stray --help no longer starts a full run."""
     import argparse
     import unicodedata
@@ -139,18 +139,18 @@ def main() -> int:
     only = parse_keys()
     manifest = manifest_load()
 
-    # Eligible: has DOI + cited by a genus OR clade + no PDF on disk yet (regardless of source state)
+    # Eligible: has DOI + no PDF on disk yet (regardless of source state)
     candidates = []
     for k, e in manifest.items():
         if only is not None and k not in only:
             continue
-        if not e.get("doi") or (only is None and not e.get("genera") and not e.get("clades")):
-            continue  # scope: cited by at least one genus OR clade
+        if not e.get("doi"):
+            continue
         if e["acquisition"].get("pdf_path") and (PDF_DIR / f"{k}.pdf").exists():
             continue
         candidates.append(k)
 
-    print(f"Tier 4 candidates (DOI + genera + still missing PDF): {len(candidates)}")
+    print(f"Tier 4 candidates (DOI + still missing PDF): {len(candidates)}")
     print(f"Estimated wall time: ~{len(candidates) * 2.5 / 60:.0f} min")
     print()
 

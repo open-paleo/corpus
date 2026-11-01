@@ -18,6 +18,7 @@ Output columns: `key | state (new/untracked/modified/tracked) | in_m | in_bib | 
 - **new** — disk-but-not-acquired, fresh intake.
 - **untracked** — PDF on disk but not in git tracking AND already-acquired in manifest. This is the already-acquired-uncommitted case (often a failed-fetch sentinel such as `unpaywall_no_oa` + a real PDF dropped later). The script flags it with `prior source=...`. Treat as a new acquisition with `previous_source` preserved (the acquire script does this automatically).
 - **modified** — PDF tracked in git but content changed. Replacement re-convert (Path D). Surface to user.
+- **unconverted** — PDF on disk, acquisition already recorded (typically by a fetcher: `corpus fetch unpaywall` / `pmc` / `oa-direct`), but no markdown and not marked citation-only. Convert it by the normal path for its year; **skip §3** for it, since `intake_acquire.py` would overwrite the fetcher's `source` with `manual`. In a public checkout, where `pdfs/` is gitignored, this is the only way fetched papers reach intake.
 
 The `path-hint` column suggests:
 - `B` for pre-1900 papers (vision OCR direct).
@@ -385,6 +386,21 @@ conversion notes, "Elsevier font AdvPS44A44B" and "PDF libraries".
 `--only dash` (repeatable) runs a subset; the single repairs are also
 `corpus repair dash|symbols|accents|diaeresis|ref_links|fused_calls`, and
 the old `scripts/repair_*.py` paths still work.
+
+Then the dropped-ligature repair, for born-digital papers whose markdown shows
+the tell (`frst`, `diferent`, `identifed`, `lef`, sentence-initial `Te`):
+
+```bash
+grep -lE '\b(frst|signifcant|identifed|diferent|defned|Tis|Tey)\b' markdown/{key}.md   # per batch key
+./.runtime/venv/bin/corpus clean ligatures --key {key}            # dry run: read the list
+./.runtime/venv/bin/corpus clean ligatures --key {key} --apply    # keeps {key}.md.ligature.bak
+rm markdown/{key}.md.ligature.bak                                 # once the result reads right
+```
+
+It takes its word frequencies from the corpus once it has 500 clean papers and
+from the `wordfreq` package before that (`--lexicon` picks one). Read the
+dry-run list: a name or a foreign word "repaired" into English is the failure
+to look for.
 
 Then index, and check the counts:
 

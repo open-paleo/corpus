@@ -2,10 +2,11 @@
 """
 Tier 1 acquisition: Unpaywall.
 
-For every manifest entry with a DOI, that is cited by at least one genus,
-and that has not yet been acquired:
+For every manifest entry with a DOI that has not yet been acquired:
   1. GET api.unpaywall.org/v2/{doi}?email=...
-  2. If best_oa_location.url_for_pdf is set, download it.
+  2. If best_oa_location.url_for_pdf is set, download it. An open-access
+     record with no PDF link is recorded as unpaywall_no_pdf_link, for the
+     PMC (fetch_pmc_oa.py) and landing-page fetchers to try.
   3. Verify the response is a real PDF (magic bytes, size > 1 KB).
   4. Save to pdfs/{citation_key}.pdf and update manifest atomically.
   5. Append the raw API response and outcome to .runtime/logs/unpaywall.jsonl.
@@ -79,8 +80,8 @@ def download_pdf(url: str, dest: Path) -> tuple[bool, str, int]:
 
 def parse_keys() -> set[str] | None:
     """--key K (repeatable) / --keys-file F restrict the run to those keys and
-    lift the genus/clade scope filter (registry-only references have none).
-    With no keys, the default scope applies. Unknown flags are an error, so a
+    run only those keys. With no keys, every bib key with a DOI and no PDF is
+    tried (whole-bib scope). Unknown flags are an error, so a
     stray --help no longer starts a full run."""
     import argparse
     import unicodedata
@@ -106,8 +107,6 @@ def main() -> int:
             continue
         if not entry.get("doi"):
             continue
-        if only is None and not entry.get("genera") and not entry.get("clades"):
-            continue  # scope: cited by at least one genus OR clade
         if (entry.get("acquisition") or {}).get("source") is not None:
             continue
         candidates.append(key)
@@ -120,7 +119,7 @@ def main() -> int:
     PDF_DIR.mkdir(parents=True, exist_ok=True)
     LOG.parent.mkdir(parents=True, exist_ok=True)
 
-    n_ok = n_no_oa = n_api_err = n_dl_err = 0
+    n_ok = n_no_oa = n_no_link = n_api_err = n_dl_err = 0
     log_fh = LOG.open("a")
     started = time.time()
 
@@ -150,12 +149,21 @@ def main() -> int:
         pdf_url = loc.get("url_for_pdf")
 
         if not pdf_url:
-            entry["acquisition"]["source"] = "unpaywall_no_oa"
+            # is_oa with no url_for_pdf: an open-access paper Unpaywall knows
+            # only by its landing page (PeerJ, many PMC-deposited papers). Not
+            # "no OA copy": the PMC and landing-page fetchers can try it.
+            open_access = bool(payload.get("is_oa"))
+            entry["acquisition"]["source"] = ("unpaywall_no_pdf_link" if open_access
+                                              else "unpaywall_no_oa")
             entry["acquisition"]["fetched_at"] = now
-            n_no_oa += 1
+            if open_access:
+                n_no_link += 1
+            else:
+                n_no_oa += 1
             log_fh.write(json.dumps(log_record) + "\n")
             log_fh.flush()
-            print(f"[{i:>4}/{len(candidates)}] {key:30s} no OA copy")
+            print(f"[{i:>4}/{len(candidates)}] {key:30s} "
+                  + ("open access, but no direct PDF link" if open_access else "no OA copy"))
             time.sleep(API_DELAY)
             continue
 
@@ -197,10 +205,12 @@ def main() -> int:
     print()
     print(f"Done in {elapsed/60:.1f} min")
     print(f"  OK (PDF saved):       {n_ok}")
+    print(f"  OA, no PDF link:      {n_no_link}"
+          + ("   (try: corpus fetch pmc, then corpus fetch oa-direct)" if n_no_link else ""))
     print(f"  no OA copy:           {n_no_oa}")
     print(f"  API error:            {n_api_err}")
     print(f"  download error:       {n_dl_err}")
-    print(f"  total processed:      {n_ok + n_no_oa + n_api_err + n_dl_err}")
+    print(f"  total processed:      {n_ok + n_no_oa + n_no_link + n_api_err + n_dl_err}")
     return 0
 
 

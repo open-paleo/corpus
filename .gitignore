@@ -44,6 +44,11 @@ __pycache__/
 # corpus.manifest write lock
 manifest.json.lock
 
+# Reports the QC and audit scripts write at the root (regenerable). A
+# private archive that tracks some of them is unaffected, as below.
+TRANSLATION_AUDIT.md
+MISSING_PAPERS.md
+
 # This checkout's own record of what it holds: never part of the public
 # repository. (A private archive that tracks it is unaffected: ignore rules
 # do not apply to files already tracked.)

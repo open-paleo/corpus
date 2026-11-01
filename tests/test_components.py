@@ -319,3 +319,71 @@ def test_failed_source_sentinels():
         assert failed_source(s)
     for s in (None, "", "manual", "unpaywall", "bhl", "oa_direct_pdf", "unpaywall_retry"):
         assert not failed_source(s)
+
+
+# ---- dropped-ligature repair: wordfreq mode -------------------------------
+
+@pytest.fixture
+def lig():
+    pytest.importorskip("wordfreq")
+    import fix_dropped_ligatures as L
+    return L, L.WordFreqLexicon(domain={"theropoda", "midshaft"})
+
+
+def test_ligatures_wordfreq_repairs_breaks(lig):
+    L, lex = lig
+    out, n = L.fix("The frst and diferent results were identifed in the lef femur.", lex)
+    assert out == "The first and different results were identified in the left femur."
+    assert L.fix("The midshaf of the bone.", lex)[0] == "The midshaft of the bone."
+
+
+def test_ligatures_wordfreq_leaves_real_words(lig):
+    L, lex = lig
+    text = ("The feet were found by Fuentes near the Eifel. "
+            "As noted by Lefèvre et al. and in los mamíferos fosilíferos.")
+    assert L.fix(text, lex) == (text, 0)
+
+
+def test_ligatures_wordfreq_judges_accented_words_whole(lig):
+    L, lex = lig
+    assert L.fix("una síntesis estratigráfca y científca", lex)[0] == \
+        "una síntesis estratigráfica y científica"
+
+
+def test_ligatures_wordfreq_th_in_a_broken_paper(lig):
+    L, lex = lig
+    text = ("Tis is it. Tey found it. Terefore we agree. Te bone is long. "
+            "the end of the bone, this base and they say. Te end.")
+    out, _ = L.fix(text, lex)
+    assert out.startswith("This is it. They found it. Therefore we agree. The bone")
+
+
+def test_ligatures_names_protect(lig):
+    L, lex = lig
+    lex.names = {"fona"}
+    assert L.fix("including Fona herzogae and others", lex)[1] == 0
+
+
+# ---- discovery and fetchers ----------------------------------------------
+
+def test_discover_lists_fetched_but_unconverted(tmp_path, monkeypatch):
+    import intake_discover as D
+    (tmp_path / "pdfs").mkdir()
+    (tmp_path / "markdown").mkdir()
+    for k in ("fetched", "done", "cited"):
+        (tmp_path / "pdfs" / f"{k}.pdf").write_bytes(b"%PDF-1.4\n")
+    (tmp_path / "markdown" / "done.md").write_text("body")
+    monkeypatch.setattr(D, "PDF_DIR", tmp_path / "pdfs")
+    monkeypatch.setattr(D, "MD_DIR", tmp_path / "markdown")
+    monkeypatch.setattr(D, "git_status_pdfs", lambda: (set(), set()))
+    m = {"fetched": {"acquisition": {"source": "unpaywall"}},
+         "done": {"acquisition": {"source": "unpaywall"}},
+         "cited": {"acquisition": {"source": "manual"}, "conversion": {"skipped": True}}}
+    pending = D.gather_pending(m)
+    assert [(p.key, p.git_state) for p in pending] == [("fetched", "unconverted")]
+
+
+def test_pmc_https_url():
+    import fetch_pmc_oa as F
+    url, md5 = F.https_url("s3://pmc-oa-opendata/PMC1.1/PMC1.1.pdf?md5=abc")
+    assert url == "https://pmc-oa-opendata.s3.amazonaws.com/PMC1.1/PMC1.1.pdf" and md5 == "abc"

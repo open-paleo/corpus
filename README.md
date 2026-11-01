@@ -55,8 +55,11 @@ genus/clade labels are downloaded.
    you don't hold yet; `--genus Iguanodon`, `--clade Ornithopoda` and
    `--has-doi` narrow it.
 2. **Fetch what is open access.** `corpus fetch unpaywall` tries every
-   missing key with a DOI; `corpus fetch oa-direct` then tries the
-   publisher's own landing page. Both are resume-safe.
+   missing key with a DOI; `corpus fetch pmc` then tries the PMC Open Access
+   subset (many open-access journals whose own sites refuse scripted
+   downloads, PeerJ among them, deposit there); `corpus fetch oa-direct`
+   tries the publisher's landing page. All are resume-safe, and fetched
+   papers show up in `/intake` as "unconverted".
 3. **Add your own PDFs.** Save a paper you have obtained as
    `pdfs/{citation key}.pdf` (the key from `corpus status --missing`).
 4. **Run intake.** In [Claude Code](https://claude.com/claude-code), `/intake`
