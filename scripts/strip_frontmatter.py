@@ -550,6 +550,23 @@ GSA_COVER_RE = [re.compile(p, re.IGNORECASE) for p in [
 AAPG_STAMP_RE = re.compile(
     r"[ \t]*This document was prepared for the exclusive use of [^.\n]{1,80}\.\s*"
     r"Unauthorized distribution is strictly prohibited\.[ \t]*")
+# Wiley Online Library per-page download footer, personalised with the
+# downloading account's name or institution (sometimes neither):
+#   20562802, 2021, 1, Downloaded from https://onlinelibrary.wiley.com/doi/10...
+#   by <reader>, Wiley Online Library on [09/10/2026]. See the Terms and
+#   Conditions (...) on Wiley Online Library for rules of use; OA articles are
+#   governed by the applicable Creative Commons License
+# marker keeps it as one line of its own. Removed globally; the whole line,
+# from the optional ISSN/year/issue prefix to "Creative Commons License", is
+# its own gate, so prose quoting a Wiley URL is left alone.
+WILEY_STAMP_RE = re.compile(
+    r"^[ \t]*(?:[\dX]{8}, \d{4}, [^,\n]{1,10}, )?"
+    r"Downloaded from https://onlinelibrary\.wiley\.com/doi/\S+ (?:by [^\n]{1,200}?)?,? ?"
+    r"Wiley Online Library on \[\d{2}/\d{2}/\d{4}\]\. See the Terms and Conditions "
+    r"\(https://onlinelibrary\.wiley\.com/terms-and-conditions\) on Wiley Online Library "
+    r"for rules of use; OA articles are governed by the applicable Creative Commons "
+    r"License\.?[ \t]*$\n?",
+    re.MULTILINE)
 # Per-page GSA download stamp, removed globally (self-gating on the host).
 GSA_STAMP_RE = re.compile(
     r"[ \t]*Downloaded from \[?[\w.]*gsapubs\.org/?\]?(?:\([^)\s]*\))?"
@@ -1503,6 +1520,10 @@ def strip_file(text: str) -> tuple[str, list[str], int]:
     # AAPG Datapages personalised stamp (self-gating, see the regex).
     text, n_aapg = AAPG_STAMP_RE.subn("", text)
     n_watermark += n_aapg
+
+    # Wiley Online Library personalised footer (self-gating, see the regex).
+    text, n_wiley = WILEY_STAMP_RE.subn("", text)
+    n_watermark += n_wiley
 
     # BHL attribution page (head-/tail-anchored, gated on a strong marker).
     text, bhl_removed = strip_bhl(text)

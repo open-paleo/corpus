@@ -84,7 +84,8 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus status` | | Held / converted / indexed / missing counts; `--missing` lists keys |
 | `corpus fetch unpaywall` | `fetch_unpaywall.py` | Tier 1: open-access PDFs by DOI via Unpaywall |
 | `corpus fetch unpaywall-by-doi` | `fetch_unpaywall_by_doi.py` | Same, for key/DOI lists not yet in the manifest |
-| `corpus fetch oa-direct` | `fetch_oa_direct.py` | Tier 2: DOI landing page → `citation_pdf_url` (`--browser-ua` opt-in) |
+| `corpus fetch pmc` | `fetch_pmc_oa.py` | Tier 2: PMC Open Access subset by DOI (Europe PMC lookup, NCBI's public bucket) |
+| `corpus fetch oa-direct` | `fetch_oa_direct.py` | Tier 3: DOI landing page → `citation_pdf_url` (`--browser-ua` opt-in) |
 | `corpus intake discover` | `intake_discover.py` | What is pending in `pdfs/`, with a path hint per key |
 | `corpus intake acquire` | `intake_acquire.py` | Record dropped PDFs as acquired (`--vision-ocr REASON` to skip marker) |
 | `corpus intake qc` | `intake_qc.py` | Bytes-per-page triage of a converted batch |
@@ -103,6 +104,7 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus clean frontmatter` | `strip_frontmatter.py` | Publisher cover boilerplate |
 | `corpus clean running-heads` | `strip_running_heads.py` | Repeated page heads and feet (**review the list**) |
 | `corpus clean despace` | `despace_ocr.py` | Rejoin OCR word splits (removes spaces only) |
+| `corpus clean ligatures` | `fix_dropped_ligatures.py` | Restore f-/Th-ligatures the text layer dropped (`diferent`, `Te`); word frequencies from the corpus once it has 500 clean papers, from `wordfreq` before that |
 | | `untable_gutter_manuscript.py`, `strip_pdf_gutter_numbers.py` | Accepted-manuscript line-number gutters |
 | | `compact_padded_tables.py` | Whitespace-padded table cells |
 | `corpus qc scan` | `scan_markdown_quality.py` | PUA garbage, CJK, image-only stubs; `--apply` flags vision OCR |
@@ -134,6 +136,7 @@ cp ~/Downloads/paper.pdf pdfs/cope1872a.pdf
 ./.runtime/venv/bin/corpus intake qc cope1872a
 ./.runtime/venv/bin/corpus qc scan
 ./.runtime/venv/bin/corpus repair all --key cope1872a            # read, then --apply
+./.runtime/venv/bin/corpus clean ligatures --key cope1872a       # read, then --apply
 ./.runtime/venv/bin/corpus clean frontmatter --key cope1872a     # read, then --apply
 # 5. Index and check.
 ./.runtime/venv/bin/corpus index
@@ -165,6 +168,7 @@ print(''.join(d[i].get_textpage().get_text_bounded() for i in range(len(d)))[:60
 | `Cr~tac~ Inf~rieur`, no accents at all in a French paper | scan OCR flattened accents | vision re-OCR |
 | `Ornlthlschia`, `Ho~otype` | scan OCR letter misreads | vision re-OCR |
 | `CampanianePaleocene`, `M€uller`, `Rhaetian6` | font faults in the text layer | `corpus repair all` |
+| `diferent`, `frst`, `lef`, `Te fossil` | dropped f-/Th-ligatures (Springer Nature, Elsevier) | `corpus clean ligatures --key K` |
 | `AnewprosauropoddinosaurfromLowerJurassic` | fullwidth Latin in a Chinese PDF | vision re-OCR |
 | Whole pages as `\| 24 \| text \|` tables | accepted-manuscript line numbers | `untable_gutter_manuscript.py`, or vision with gutter context |
 | Journal line repeating once per page | running head | `strip_running_heads.py` (review the list) |

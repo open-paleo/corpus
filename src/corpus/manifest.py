@@ -169,7 +169,7 @@ def acquisition(entry: dict) -> dict:
 # (unpaywall_no_oa, unpaywall_error, oa_direct_no_meta_tag,
 # oa_direct_landing_failed, ...), so that a re-run skips the key.
 FAILED_SUFFIXES = ("_no_match", "_no_oa", "_failed", "_error", "_not_found",
-                   "_html_landing", "_no_meta_tag", "_malformed")
+                   "_html_landing", "_no_meta_tag", "_malformed", "_no_pdf_link")
 
 
 def failed_source(source: str | None) -> bool:

@@ -42,7 +42,7 @@ acquired:
 | `in_bib` | `false` for a key the bib no longer has (kept because files exist). |
 | `doi`, `year` | From the bib. |
 | `genera`, `clades` | Genera and clades that cite the key directly. Labels only. |
-| `acquisition.source` | Where the PDF came from (`unpaywall`, `oa_direct_pdf`, `manual`, ...). Values with the suffixes in `corpus.manifest.FAILED_SUFFIXES` (`unpaywall_no_oa`, `oa_direct_landing_failed`, ...) record a failed fetch, not a PDF. |
+| `acquisition.source` | Where the PDF came from (`unpaywall`, `pmc_oa`, `oa_direct`, `manual`, ...). Values with the suffixes in `corpus.manifest.FAILED_SUFFIXES` (`unpaywall_no_oa`, `oa_direct_landing_failed`, ...) record a failed fetch, not a PDF. |
 | `conversion.tool` | `marker`, `claude-vision`, or another converter; `null` when not converted. |
 | `conversion.skipped` | `true` for a held paper deliberately left unconverted (citation-only). |
 | `supplementary.{name}` | `pdf_path`, `markdown_path`, `tool` for each supplementary file. |

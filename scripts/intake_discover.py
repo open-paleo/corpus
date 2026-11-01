@@ -45,7 +45,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 from corpus.supplementary import SUPP_PDF_DIR, SUPP_MD_DIR, resolve_parent
-from corpus.config import ROOT as ARCHIVE, PDF_DIR
+from corpus.config import ROOT as ARCHIVE, MD_DIR, PDF_DIR
 from corpus.manifest import load as manifest_load
 from corpus.manifest import failed_source
 
@@ -137,7 +137,7 @@ class Pending:
     in_manifest: bool
     in_bib: bool | None
     prior_source: str | None
-    git_state: str          # "new" | "untracked" | "modified" | "tracked"
+    git_state: str          # "new" | "untracked" | "modified" | "unconverted" | "tracked"
     year: int | None
     cited_pages: str | None  # raw bib pages field, like "501-505"
     pdf_pages: int | None
@@ -244,8 +244,18 @@ def gather_pending(manifest: dict) -> list[Pending]:
     # live here should be renamed before intake.
     universe = set(manifest) | disk_keys
 
-    # Union of: (disk - acquired), untracked, modified.
-    pending_keys = (disk_keys - acquired) | untracked | modified
+    # Acquired PDFs that were never converted: what the fetchers downloaded.
+    # Where pdfs/ is gitignored (a public checkout) git status never reports
+    # them, so without this set they would be invisible to intake.
+    def converted(k: str) -> bool:
+        md = MD_DIR / f"{k}.md"
+        return md.exists() and md.stat().st_size > 0
+    unconverted = {k for k in disk_keys & acquired
+                   if not converted(k)
+                   and not (manifest[k].get("conversion") or {}).get("skipped")}
+
+    # Union of: (disk - acquired), untracked, modified, unconverted.
+    pending_keys = (disk_keys - acquired) | untracked | modified | unconverted
     out: list[Pending] = []
     for k in sorted(pending_keys):
         pdf_path = PDF_DIR / f"{k}.pdf"
@@ -261,6 +271,8 @@ def gather_pending(manifest: dict) -> list[Pending]:
             git_state = "untracked"
         elif not in_m or not prior_source:
             git_state = "new"
+        elif k in unconverted:
+            git_state = "unconverted"
         else:
             git_state = "tracked"
 
@@ -321,7 +333,7 @@ def print_table(pending: list[Pending]) -> None:
     if not pending:
         print("Nothing pending intake. ✓")
         return
-    hdr = f"{'key':28s} {'state':9s} {'in_m':5s} {'in_bib':6s} {'year':4s} {'pp':>5s} {'KB':>7s} {'P':1s}  {'note'}"
+    hdr = f"{'key':28s} {'state':11s} {'in_m':5s} {'in_bib':6s} {'year':4s} {'pp':>5s} {'KB':>7s} {'P':1s}  {'note'}"
     print(hdr)
     print("-" * len(hdr))
     for p in pending:
@@ -331,7 +343,7 @@ def print_table(pending: list[Pending]) -> None:
         pp = str(p.pdf_pages) if p.pdf_pages is not None else "?"
         size = f"{p.pdf_size_kb:.0f}" if p.pdf_size_kb is not None else "?"
         flag = "  ⚠SPLIT" if p.split_warn else ""
-        print(f"{p.key:28s} {p.git_state:9s} {in_m:5s} {in_bib:6s} {year:4s} {pp:>5s} {size:>7s} {p.path_hint}  {p.note}{flag}")
+        print(f"{p.key:28s} {p.git_state:11s} {in_m:5s} {in_bib:6s} {year:4s} {pp:>5s} {size:>7s} {p.path_hint}  {p.note}{flag}")
     print()
     paths = {}
     for p in pending:
