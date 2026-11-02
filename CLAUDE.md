@@ -16,7 +16,7 @@ was put there by this machine's user and stays here.
   (`genera[]`, `clades[]`) is a label for searching and filtering, not a filter.
 - **The bib** comes from `CORPUS_BIB_SOURCE` (`corpus.bib`): `sibling`
   (`../data/dist/references.bib`, or `$OPEN_PALEO_DATA`), `bundled`
-  (`bib/references.bib`, updated daily from the data repository by the
+  (`bib/references.bib`, updated from the data repository after each build that changes it, by the
   `update-bib` workflow's pull requests), `remote` (downloaded from the data
   repository on GitHub), or `auto` (the first of those that exists, else
   remote).

@@ -43,7 +43,7 @@ The bibliography comes from `CORPUS_BIB_SOURCE` in `.env`:
 |---|---|
 | `auto` (default) | `../data` if it is there, else `bib/references.bib` if present, else the download |
 | `sibling` | `../data/dist/references.bib` (or `$OPEN_PALEO_DATA`) |
-| `bundled` | `bib/references.bib` in this repository, kept current by the `update-bib` workflow (daily) |
+| `bundled` | `bib/references.bib` in this repository, kept current by the `update-bib` workflow, which the data repository triggers when a build changes its bib |
 | `remote` | the data repository's `dist/references.bib` on GitHub, cached in `.runtime/cache/bib/` |
 
 So the data repository clone is optional: without it, the bib comes from

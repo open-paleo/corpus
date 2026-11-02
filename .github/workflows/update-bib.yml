@@ -13,13 +13,18 @@ name: update-bib
 # with the built-in GITHUB_TOKEN do not trigger the required checks. The
 # rulesets still apply to that token: it cannot push to main.
 #
-# Triggers: daily, by hand (Actions > update-bib > Run workflow), or from the
-# data repository after a build:
-#   gh api repos/open-paleo/corpus/dispatches -f event_type=bib-updated
+# Triggers:
+# - the data repository's build, when its build commit changed
+#   dist/references.bib: a repository_dispatch of type bib-updated whose
+#   client_payload.sha is that commit. The bib is fetched at exactly that
+#   commit (raw.githubusercontent.com caches main for minutes, so fetching
+#   main right after the build can return the previous file):
+#     gh api repos/open-paleo/corpus/dispatches -f event_type=bib-updated \
+#       -F "client_payload[sha]=$SHA"
+# - by hand (Actions > update-bib > Run workflow), fetching main: the fallback
+#   if a dispatch was missed.
 
 on:
-  schedule:
-    - cron: "23 7 * * *"
   workflow_dispatch:
   repository_dispatch:
     types: [bib-updated]
@@ -32,7 +37,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BIB_URL: https://raw.githubusercontent.com/open-paleo/data/main/dist/references.bib
+  # The data commit to take the bib from: the dispatch's sha, else main.
+  DATA_REF: ${{ github.event.client_payload.sha || 'main' }}
   BRANCH: bot/bib-update
 
 jobs:
@@ -59,7 +65,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p bib
-          curl -fsSL --retry 3 -o bib/references.bib.new "$BIB_URL"
+          if ! printf '%s' "$DATA_REF" | grep -qE '^(main|[0-9a-f]{7,40})$'; then
+            echo "::error::Unexpected data ref: $DATA_REF"
+            exit 1
+          fi
+          curl -fsSL --retry 3 -o bib/references.bib.new \
+            "https://raw.githubusercontent.com/open-paleo/data/${DATA_REF}/dist/references.bib"
           n=$(grep -c '^@' bib/references.bib.new || true)
           if [ "$n" -lt 1000 ]; then
             echo "::error::Downloaded bib has only $n entries; refusing to replace it."
@@ -84,7 +95,7 @@ jobs:
           PREVIOUS: ${{ steps.fetch.outputs.previous }}
         run: |
           set -euo pipefail
-          source_sha=$(gh api repos/open-paleo/data/commits/main --jq .sha | cut -c1-12)
+          source_sha=$(gh api "repos/open-paleo/data/commits/${DATA_REF}" --jq .sha | cut -c1-12)
           name="open-paleo-corpus bib bot"
           email="41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "$name"
