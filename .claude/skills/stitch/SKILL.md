@@ -16,14 +16,14 @@ User-provided source images live under `source_images/{key}/` (gitignored, like 
 
 ```
 source_images/
-└── matheron1869/
+└── {key}/
     ├── 001.jpg
     ├── 002.jpg
     ├── ...
     └── 014.jpg
 ```
 
-Supported extensions: `.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`, `.jp2`, `.heic`, `.heif` (case-insensitive). JP2 (JPEG 2000) is common in BHL JP2 dumps and other library scans — img2pdf embeds it unchanged on the lossless path (at 72 DPI, as PyMuPDF did); Pillow handles it for the re-encode fallback (jpeg2000 plugin is installed in the venv). HEIC/HEIF inputs (iPhone photos) are decoded via `pillow_heif`; img2pdf can't embed HEIC, so the lossless path round-trips through a Pillow→JPEG q=95 step (still single-pass, near-lossless for scans).
+Supported extensions: `.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`, `.jp2`, `.heic`, `.heif` (case-insensitive). JP2 (JPEG 2000) is common in BHL JP2 dumps and other library scans — img2pdf embeds it unchanged on the lossless path, laid out at 72 DPI; Pillow handles it for the re-encode fallback (jpeg2000 plugin is installed in the venv). HEIC/HEIF inputs (iPhone photos) are decoded via `pillow_heif`; img2pdf can't embed HEIC, so the lossless path round-trips through a Pillow→JPEG q=95 step (still single-pass, near-lossless for scans).
 
 Verify the source-image set matches the user's expectation before stitching:
 
@@ -40,7 +40,7 @@ If pages are out of order (e.g. `1.jpg`, `2.jpg`, `10.jpg` will sort wrong becau
 
 The script writes a PDF either way, but only updates `manifest[key].acquisition` if the key is already in the manifest. If the key is missing:
 - Run `/refresh-bib` if you expect the bib to have it.
-- Otherwise warn the user and confirm before stitching — an orphan PDF in `pdfs/` without a manifest entry will sit there inert until the bib catches up.
+- Otherwise warn the user and confirm before stitching. `/intake` will still process the PDF as an orphan (a stub entry with `in_bib=False`), but the stitching provenance (`pdf_stitched_at`, `pdf_source`) is not recorded.
 
 ## 3. Stitch
 
@@ -71,12 +71,13 @@ capped at 2400 px, so the OCR-clean pages also convert cheaply at intake.
 
 ```bash
 # whole photographed paper:
-./.runtime/venv/bin/python scripts/photocopier_stitch.py --key young1937a
+./.runtime/venv/bin/python scripts/photocopier_stitch.py --key {key}
 # a chapter within a multi-paper volume — inclusive sorted filename range:
-./.runtime/venv/bin/python scripts/photocopier_stitch.py --key dong1973a \
+./.runtime/venv/bin/python scripts/photocopier_stitch.py --key {key} \
     --select IMG_0612 IMG_0620
 # tunables (rarely needed; defaults tuned on 1930s-70s letterpress):
-#   --white 0.93 --black 0.55 --gamma 1.15
+#   --white 0.93 --black 0.55 --gamma 1.15 --max-dim 2400 --jpeg-q 88
+# --force re-stitches over an existing PDF.
 ```
 
 Always preview the effect on one page (and confirm the `--select` range maps
@@ -135,7 +136,7 @@ Ask the user whether to run `/intake` now or hold off (they may want to drop mor
 ## Notes / gotchas
 
 - **Lossless ≠ small for PNG inputs**: PNG inputs that are large in pixel dimensions still produce big PDFs lossless. Re-encoded JPEG is usually smaller for full-page scans. For diagrams/charts already PNG-compressed at low size, lossless wins. The script picks lossless first because for scans (the common case) it's higher quality — but trust the auto-fallback to handle the size cliff.
-- **TIFF support is variable**: img2pdf embeds most TIFFs; anything it refuses is decoded by Pillow and embedded as lossless PNG automatically. If a TIFF still errors, use `--reencode`.
+- **TIFF support varies**: img2pdf embeds most TIFFs; anything it refuses is decoded by Pillow and embedded as lossless PNG automatically. If a TIFF still errors, use `--reencode`.
 - **Color profile / orientation**: re-encode path converts to RGB and applies any rotation flags via Pillow's default behavior; lossless path embeds streams as-is, so an EXIF-rotated JPEG will display rotated in the PDF. If output looks rotated, re-encode to normalize.
 - **Don't stitch into a key that already has a real PDF without `--force`**: the script skips by default to avoid clobbering acquired PDFs from a fetcher or a manual download.
 - **`source_images/` is gitignored** — raw inputs aren't committed. Once `pdfs/{key}.pdf` is committed, the user can clean up `source_images/{key}/` if they want to free disk space.

@@ -14,7 +14,7 @@ misses the sentence, and nothing in the QC chain notices because the prose
 around it is intact.
 
 The PDF is the authority and the signal is unambiguous. A reference call is set
-smaller and raised: in buffetaut2000a the "6" in "Rhaetian6" is its own span at
+smaller and raised: in one paper the "6" in "Rhaetian6" is its own span at
 size 5.6 on a baseline 4.7pt above the 9.3pt body text around it. So rather than
 guessing which trailing digits are a citation and which belong to the word — and
 "Iguanodon2" and "IVPP V12" are not distinguishable by shape — each candidate is
@@ -26,8 +26,8 @@ same files, `word<sup>N</sup>`, so the reference number is preserved rather than
 discarded.
 
     scripts/repair_fused_superscript_refs.py --audit
-    scripts/repair_fused_superscript_refs.py --key buffetaut2000a
-    scripts/repair_fused_superscript_refs.py --key buffetaut2000a --apply
+    scripts/repair_fused_superscript_refs.py --key KEY
+    scripts/repair_fused_superscript_refs.py --key KEY --apply
     scripts/repair_fused_superscript_refs.py --all --apply
 """
 from __future__ import annotations
@@ -53,7 +53,7 @@ CALL = re.compile(r"^[0-9]{1,3}(?:[,–-][0-9]{1,3})*$")
 
 # A unit exponent is typeset exactly like a reference call — smaller and raised —
 # but the digit belongs to the unit. "km2" is km², not km + reference 2, and
-# separating it turns an area into a citation. Caught on sander2006a.
+# separating it turns an area into a citation.
 UNITS = {"m", "km", "cm", "mm", "µm", "um", "nm", "ft", "in", "yd", "mi", "s"}
 
 
@@ -67,7 +67,7 @@ ELEMENTS = {s: z for z, s in enumerate(
 
 def is_isotope(word: str, call: str) -> bool:
     """An element symbol with a number in its mass range: the raised mass
-    number of "40Ar/39Ar" (sereno2013a, lucas2001b "Ar40/ Ar39"), "87Sr/86Sr",
+    number of "40Ar/39Ar" (or "Ar40/ Ar39"), "87Sr/86Sr",
     "143Nd/144Nd". Author calls such as "Li1,2" or "Mo5" are far too small."""
     z = ELEMENTS.get(word)
     if z is None or z < 3 or not call.isdigit():
@@ -97,14 +97,14 @@ def candidates(doc):
                                       "first": chars[0]["origin"], "last": chars[-1]["origin"]})
                 if len(spans) < 2:
                     continue
-                # Horizontal text only. In rotated text (yang2008a p9's
-                # sideways table header, (0, -1)) "raised" and "after" are
+                # Horizontal text only. In rotated text (a sideways table
+                # header, (0, -1)) "raised" and "after" are
                 # measured along the wrong axes and subscripts pass.
                 if abs(line.get("dir", (1.0, 0.0))[0]) < 0.99:
                     continue
                 body = max(s["size"] for s in spans)
-                # A call split over several spans ("1" then ",2,6": PyMuPDF on
-                # morrison2026a) is one call: merge each small span into the
+                # A call split over several spans ("1" then ",2,6", as PyMuPDF
+                # can give it) is one call: merge each small span into the
                 # one before it when that is small too, on the same baseline,
                 # and the two touch.
                 merged = []
@@ -121,22 +121,21 @@ def candidates(doc):
                 spans = merged
                 for i, s in enumerate(spans[1:], 1):
                     # Trailing punctuation and author marks set in the call's
-                    # own span are not part of it (dowling1917a "shales1 ;",
-                    # mocho2023a "Mocho1–4,*").
+                    # own span are not part of it ("shales1 ;", "Mocho1–4,*").
                     txt = re.sub(r"[\s;:.,)*†‡]+$", "", s["text"].strip())
                     # "1, 2" in one span (pdfium; PyMuPDF splits it): the
                     # spaces are typesetting, the call is "1,2".
                     txt = re.sub(r"\s*([,–-])\s*", r"\1", txt)
                     # A call-shaped start followed by no letters counts:
-                    # pdfium keeps "5,6,8±10" (borissiaki, averianov2000a)
-                    # in one span, the ± a dash in the wrong font.
+                    # pdfium keeps "5,6,8±10" in one span, the ± a dash in the
+                    # wrong font.
                     lead = re.match(r"[0-9]{1,3}(?:[,–-][0-9]{1,3})*", txt)
                     # ...unless what follows is a letter, or a charge sign:
-                    # "2+" is an ion (fiorillo2010a "Fe2+"), not call 2.
+                    # "2+" is an ion ("Fe2+"), not call 2.
                     if not lead or re.search(r"[A-Za-zÀ-ÿ+−]", txt[lead.end():]):
                         continue
                     # No reference number starts with 0: "mass0.75" is an
-                    # exponent (weishampel2004a, arbour2017b).
+                    # exponent.
                     if txt.startswith("0"):
                         continue
                     txt = lead.group(0)
@@ -147,33 +146,30 @@ def candidates(doc):
                     # "CO2"). Measured against the line as a whole (its lowest
                     # box bottom, or its lowest baseline) both pass whenever
                     # the line also holds a glyph set lower, a symbol-font "="
-                    # (yan2007z) or a neighbouring table row (hernán2018a:
-                    # CO2 x135).
+                    # or a neighbouring table row.
                     # The word's LAST glyph: a span can open on a raised
-                    # character of its own (demic2012c "Z. FOREMAN2").
+                    # character of its own ("Z. FOREMAN2").
                     if spans[i - 1]["last"][1] - s["first"][1] < RAISE_MIN:
                         continue
                     # ...and it follows the word: past the word's middle, not
                     # its box end, since an author name ending in a kerned hair
-                    # space overlaps its call by 1.6 pt (hattori2023a
-                    # "Hattori1,2").
+                    # space can overlap its call by 1.6 pt ("Hattori1,2").
                     pb = spans[i - 1]["bbox"]
                     if s["first"][0] <= (pb[0] + pb[2]) / 2:
                         continue
-                    # An ion's charge, not a call: "Ca2+" (tucker2025a) sets
-                    # the digit and the sign raised. The sign is small too; a
-                    # body-size dash after a call is just a dash (zheng2013a
-                    # "ovideposition16,17 – instead").
+                    # An ion's charge, not a call: "Ca2+" sets the digit and
+                    # the sign raised. The sign is small too; a body-size dash
+                    # after a call is just a dash ("ovideposition16,17 – instead").
                     nxt = spans[i + 1] if i + 1 < len(spans) else None
                     if (nxt and nxt["text"].lstrip()[:1] in ("+", "-", "−", "–")
                             and nxt["size"] <= body * SIZE_RATIO):
                         continue
                     # All the line's text before the call, not just the previous
                     # span: a stray accent can be a span of its own inside the
-                    # word ("dinos`aurs1,2", averianov2000a).
+                    # word ("dinos`aurs1,2").
                     # Spans are joined with a space where they are apart: some
-                    # lines carry no space characters at all (PyMuPDF on
-                    # xu1999a, "groundup7,8").
+                    # lines carry no space characters at all (PyMuPDF can give
+                    # "groundup7,8").
                     tail = ""
                     for j, sp in enumerate(spans[:i]):
                         if j and sp["bbox"][0] - spans[j - 1]["bbox"][2] > 0.15 * sp["size"] \
@@ -192,10 +188,10 @@ def word_forms(tail: str) -> list[str]:
 
     pdfium's text differs from the markdown's around the word in three ways,
     each handled here:
-      - it splits a kerned word with spaces ("BELLARD IN I1,2,5,6",
-        baiano2022a): the last two and three letter runs, joined, are tried;
-      - it puts a spacing accent inside the word ("Ro´gers8,9", novas2015a)
-        where marker has none: every form is also tried with marks removed;
+      - it splits a kerned word with spaces ("BELLARD IN I1,2,5,6"): the last
+        two and three letter runs, joined, are tried;
+      - it puts a spacing accent inside the word ("Ro´gers8,9") where marker
+        has none: every form is also tried with marks removed;
       - a word space is missing ("andFernandoEscaso1", "NingLi1,2") or a
         mark sits on the other side of its letter ("Arga˜naraz5" against
         "Argan˜araz5"): ever shorter endings are tried, down to three letters,
@@ -212,7 +208,7 @@ def word_forms(tail: str) -> list[str]:
                 forms.append(m.group(0).replace(" ", ""))
     endings = [w[k:] for w in forms for k in range(1, len(w) - 2)]
     # Two-letter endings only where a capitalised word starts: names run
-    # together in the PDF itself ("NingLi1,2", dai2022a) end in "Li", "Ma".
+    # together in the PDF itself ("NingLi1,2") end in "Li", "Ma".
     endings += [w[-2:] for w in forms
                 if len(w) > 2 and w[-2].isupper() and w[-3].islower()]
     return [w for w in dict.fromkeys(forms + endings) if len(w) >= 2]
@@ -221,7 +217,7 @@ def word_forms(tail: str) -> list[str]:
 def call_forms(call: str) -> list[str]:
     """The call, then with the spaces the markdown keeps ("wollastoni10, 11"),
     then its first group ("mongoliensis2-4, 7, 15"), then its first number:
-    marker can link the rest away ("Europe3[,18](#page-8-…)", mocho2024a)."""
+    marker can link the rest away ("Europe3[,18](#page-8-…)")."""
     first_group = call.split(",")[0]
     first = re.match(r"[0-9]+", call).group(0)
     return list(dict.fromkeys([call, call.replace(",", ", "), first_group, first]))
@@ -260,21 +256,21 @@ def repair(doc, md: str, key: str, *, quiet: bool = False) -> tuple[str, dict]:
                 fused = f"{word}{call}"
                 fixed = f"{word}<sup>{call}</sup>"
                 # Already repaired, as a whole token: a bare substring test
-                # took "Stegosaurs<sup>1</sup>" for "aurs<sup>1</sup>" and
-                # skipped "dinosaurs1" (averianov2000a).
+                # would take "Stegosaurs<sup>1</sup>" for "aurs<sup>1</sup>" and
+                # skip "dinosaurs1".
                 if re.search(r"(?<![0-9A-Za-zÀ-ÿ])" + re.escape(fixed), new):
                     hits = None
                     break
                 # Bounded both sides: the fused form must be a whole token, or
                 # "rare4" would also match inside "rare45"; the call must end
                 # there, or the first-number fallback "6" would cut
-                # "deinonychosaurs6,11" (xu2011d) to "<sup>6</sup>,11"; and no
-                # charge sign may follow ("Fe2+", nessov1995a).
+                # "deinonychosaurs6,11" to "<sup>6</sup>,11"; and no
+                # charge sign may follow ("Fe2+").
                 # Nor is a call next to a slash, before a decimal point, or
                 # hyphened to a word: those are isotope ratios ("Ar40/Ar39",
                 # "Ar40-Ar39", "Sr87/Sr86"), specimen numbers
-                # (serrano-brañas2025a "BENC32/2–0001"), land-survey
-                # fractions (eaton1991a "SE1/4") and exponents ("BM0.75").
+                # ("BENC32/2–0001"), land-survey fractions ("SE1/4") and
+                # exponents ("BM0.75").
                 pat = re.compile(r"(?<![0-9A-Za-zÀ-ÿ/])" + re.escape(fused)
                                  + r"(?![0-9A-Za-zÀ-ÿ+−/])(?![,–-][0-9])(?![-–][A-Za-z])(?!\.[0-9])")
                 hits = list(pat.finditer(new))

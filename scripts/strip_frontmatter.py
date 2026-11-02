@@ -57,7 +57,7 @@ article body — is preserved verbatim.
   # apply
   ./.runtime/venv/bin/python scripts/strip_frontmatter.py --apply
   # limit / target specific keys
-  ./.runtime/venv/bin/python scripts/strip_frontmatter.py --key allain2000a --key bonaparte1976a
+  ./.runtime/venv/bin/python scripts/strip_frontmatter.py --key KEY1 --key KEY2
 """
 
 from __future__ import annotations
@@ -150,20 +150,20 @@ PHRASE_JUNK = [
     # as a run of short paragraphs sitting AFTER the title, authors and
     # abstract. Paragraph denylist, each anchored at a line start and
     # head-bounded by the caller, so the same vocabulary inside a reference
-    # ("… PeerJ 3:e1691 https://doi.org/10.7717/peerj.1691") is untouched —
-    # 301 files cite a peerj DOI, only 58 carry this sidebar.
+    # ("… PeerJ 3:e1691 https://doi.org/10.7717/peerj.1691") is untouched:
+    # far more files cite a PeerJ DOI than carry this sidebar.
     #
     # The DOI line is pinned to PeerJ's 10.7717 prefix rather than a generic
     # DOI, and the submitted/accepted/published line requires all three in
     # order. Deliberately NOT included: the "Corresponding author <name>
-    # <mailto:…>" line. It matches 63 paragraphs but some belong to non-PeerJ
-    # papers where it is the article's own author metadata (alcober2010a),
-    # and dropping a corresponding author buys nothing.
+    # <mailto:…>" line. Some of its matches belong to non-PeerJ papers where
+    # it is the article's own author metadata, and dropping a corresponding
+    # author gains nothing.
     #
     # Science Advances reuses the submitted/accepted/published wording but
     # places it near the END of the paper, past HEAD_LIMIT, so it is left
-    # alone — as is one PeerJ file (cincotta2019a) whose long abstract pushes
-    # the sidebar 11 chars past the limit. Raising HEAD_LIMIT globally to
+    # alone — as is a PeerJ sidebar that a long abstract pushes just past the
+    # limit. Raising HEAD_LIMIT globally to
     # catch it would loosen every other handler. ---
     r"^submitted \d+ \w+ \d{4} +accepted .+ +published \d",
     r"^\[academic editor\]\(https?://peerj\.com",
@@ -175,8 +175,7 @@ PHRASE_JUNK = [
     # --- Elsevier AUTHOR-COPY cover ("Author's personal copy"): a page 1 of
     # sharing-policy prose that Elsevier prepends to the copy furnished to the
     # author, plus a heading repeating on the article's first page. Anchored
-    # to the cover's own sentences, head-bounded by the caller.
-    # (sweetman2010z; the only instance in the corpus when added.) ---
+    # to the cover's own sentences, head-bounded by the caller. ---
     r"^\*{0,2}this article appeared in a journal published by elsevier",
     r"^\*{0,2}other uses, including reproduction and distribution, or selling or licensing",
     r"^\*{0,2}in most cases authors are permitted to post their version of the article",
@@ -231,8 +230,8 @@ PREPROOF_FOOTER_RE = re.compile(
 # Shape alone CANNOT gate this. A leading single letter is also how an
 # affiliation superscript comes through ("a Institut Català de Paleontologia")
 # and how an ordinary sentence beginning with the article "A" comes through
-# ("A relatively high-resolution time framework…"), and both appear in
-# fondevilla2019z. Stripping on shape would delete real text.
+# ("A relatively high-resolution time framework…"), and both can appear in
+# the same pre-proof. Stripping on shape would delete real text.
 #
 # The discriminator is the same one the table rules use: the VERTICAL SEQUENCE.
 # Watermark letters chain down consecutive lines and spell the phrase; a real
@@ -244,8 +243,8 @@ PREPROOF_FOOTER_RE = re.compile(
 # spares the three-line affiliation block, whose letters would pass the
 # subsequence test on their own.
 #
-# NOT handled: the same watermark landing at the END of a line. Only 7 of them
-# occur in the worked example against 52 leading ones, and a trailing "a" or
+# NOT handled: the same watermark landing at the END of a line. That is much
+# rarer than the leading form, and a trailing "a" or
 # "n" is indistinguishable from prose ("materials reveal a") — the yield does
 # not justify the risk, so they are left in place.
 PREPROOF_PHRASE = "JOURNALPREPROOF"
@@ -327,8 +326,8 @@ WATERMARK_PREFIX_RE = re.compile(
 # ("| ACCEPTED MANUSCRIPT<br>Rachis |"). Anchored on the cell's opening pipe so
 # only the watermark goes and the real value stays. Self-gating (applied even
 # when the Elsevier head hallmark is absent): an all-caps watermark sitting in
-# a table cell is its own evidence, and a file whose cover was stripped by an
-# earlier pass no longer trips the head gate.
+# a table cell is its own evidence, and a file whose cover an earlier run
+# already stripped does not trip the head gate.
 WATERMARK_CELL_RE = re.compile(
     r"(\|[ \t]*)(?:ACCEPTED MANUSCRIPT|MANUSCRIPT ACCEPTED)(?:<br>)?[ \t]*")
 # Sometimes marker shreds the *rotated* watermark instead of reading it as a
@@ -382,9 +381,9 @@ WATERMARK_ONLY_CELL_RE = re.compile(
 # The per-cell group is ATOMIC. Without (?>...) the two [ \t]* around the
 # optional letter-run can split a space run between them in exponentially many
 # ways, so a row that starts with "|", contains a long run of spaces and never
-# reaches a closing "|" backtracks forever. Real case: dias2020a (an Elsevier
-# Journal Pre-proof) has table rows with 48-108 consecutive spaces and hung the
-# whole corpus sweep at 100% CPU with no output.
+# reaches a closing "|" backtracks forever. Elsevier Journal Pre-proof tables
+# can have rows with ~100 consecutive spaces, which would hang a corpus sweep at
+# 100% CPU with no output.
 WATERMARK_FRAGMENT_ROW_RE = re.compile(
     rf"^\|(?>(?:[ \t]*(?:[{WATERMARK_LETTERS}](?:<br>[{WATERMARK_LETTERS}])*)?"
     rf"[ \t]*\|))+[ \t]*$\n?", re.MULTILINE)
@@ -761,7 +760,7 @@ UMI_RESIDUAL = re.compile(
     r"^#*\**\s*umi\\?\*?\s*\**$|bell\s*&\s*howell|^-+$", re.IGNORECASE)
 
 
-# UMI/ProQuest notice sitting AFTER the title page (shipman2004z): "UMI Number:
+# UMI/ProQuest notice sitting AFTER the title page: "UMI Number:
 # NNNN", "INFORMATION TO USERS" and its two paragraphs, "UMI Microform NNNN",
 # the ProQuest copyright line and its Ann Arbor address. strip_umi() handles
 # only a notice BEFORE the title; this one is gated on the "UMI Number:" line
@@ -1010,7 +1009,7 @@ def strip_peabody(text: str) -> tuple[str, list[str]]:
     # last anchor in the head zone. A facsimile carries the monograph's own
     # colophon further down ("Publications Office, Peabody Museum … P.O. Box
     # 208118"), which is real published front matter; anchoring on the last
-    # match swallowed the title and author with it.
+    # match would swallow the title and author with it.
     idx, off = None, 0
     for i, b in enumerate(blocks):
         if off > HEAD_LIMIT:
@@ -1170,8 +1169,8 @@ def strip_sciencedirect(text: str) -> tuple[str, list[str]]:
 # OTHER articles in that issue. Left in place these are the worst kind of
 # boilerplate: they are real, well-formed palaeontology titles about entirely
 # different taxa, so they land in the FTS body and make a paper answer searches
-# it has nothing to do with (gallina2015a advertising a graptolite-trilobite
-# correlation and a Pleistocene legume flora).
+# it has nothing to do with (a dinosaur paper advertising a
+# graptolite-trilobite correlation and a Pleistocene legume flora).
 #
 # Removed as the anchor block plus the contiguous teaser run. A teaser is one
 # short single line, optionally under a marker-guessed heading level, ending in
@@ -1199,7 +1198,7 @@ def _is_amgh_teaser(block: str) -> bool:
 
 # --- thefreelibrary.com article rendering ---------------------------------
 # The Free Library reprints journal articles as web pages, and is sometimes the
-# only digitised copy of an older paper (parris1992a, Texas J. Sci. 1992). Its
+# only digitised copy of an older paper. Its
 # HTML-to-PDF rendering wraps the real article in site furniture: a search-nav
 # table and a breadcrumb at the head, a nav/terms run at the tail, and -- the
 # part a head-bounded denylist cannot reach -- large Google ad blocks spliced
@@ -1494,10 +1493,10 @@ def strip_file(text: str) -> tuple[str, list[str], int]:
     n_watermark += n_cell
 
     # Elsevier "Journal Pre-proof" page footer (self-gating, see the regex).
-    # Deliberately NOT under the `elsevier` head gate: once an earlier pass has
-    # cut the PII / "# Journal Pre-proof" cover, the hallmark no longer fires,
-    # but the per-page footers are still glued to every page's last paragraph
-    # (soto2024a). The phrase ending a line is its own evidence.
+    # Deliberately NOT under the `elsevier` head gate: once an earlier run has
+    # cut the PII / "# Journal Pre-proof" cover, the hallmark does not fire,
+    # but the per-page footers are still glued to every page's last paragraph.
+    # The phrase ending a line is its own evidence.
     text, n_pp = PREPROOF_FOOTER_RE.subn("", text)
     n_watermark += n_pp
 

@@ -29,8 +29,8 @@ the assistant's own output as well, so echoing a blocked page re-trips it.
 Compare the candidate with the current page, then run again with --apply,
 which serves the saved candidate (no new API calls):
 
-    scripts/reocr_nooverlap.py --key luo1994a --page 18
-    scripts/reocr_nooverlap.py --key luo1994a --page 18 --apply
+    scripts/reocr_nooverlap.py --key KEY --page 18
+    scripts/reocr_nooverlap.py --key KEY --page 18 --apply
 
 --apply writes .runtime/cache/vision/{key}/page-NNNN.json with
 method="recovered_nooverlap" and splices the page into markdown/{key}.md by
@@ -75,7 +75,7 @@ REMARK = re.compile(
 
 
 def drop_remarks(md: str) -> str:
-    md = re.sub(r"<think>.*?</think>", "", md, flags=re.S)  # leaked reasoning (tumanova2000z p14)
+    md = re.sub(r"<think>.*?</think>", "", md, flags=re.S)  # leaked reasoning
     paras = [p for p in md.split("\n\n") if not (len(p) < 420 and REMARK.search(p))]
     return "\n\n".join(paras).strip()
 
@@ -110,7 +110,7 @@ def gutter_zones(img: Image.Image, gx: int) -> list[Image.Image]:
     a wide figure or table, a centred running head). Everything else is split
     left/right at gx, including a band where one column is short or blank:
     read across, it would put one column's heading before the other column's
-    text (lü2008b p6, carter2003a p14).
+    text.
     """
     gray = np.asarray(img.convert("L"))
     h, w = gray.shape

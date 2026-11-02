@@ -5,7 +5,7 @@ Match manifest entries → BHL PartIDs using the local SQLite index.
 
 Strategy per entry (every bib key with no PDF on disk and no match yet):
   1. DOI exact match → Part            (cleanest, but rare for paleo refs)
-  2. DOI exact match → Title           (ambiguous; logged for now, not auto-matched)
+  2. DOI exact match → Title           (ambiguous; logged, not auto-matched)
   3. Fuzzy: FTS5 over Title + Author   (the main path)
        - Score = year_match*3 + author_match*3 + title_overlap_ratio*5
        - Accept best candidate if score >= MIN_SCORE
@@ -20,12 +20,13 @@ review table: our title against BHL's, year and score.
 
 Writes match results back into manifest under entry["bhl_match"]:
   {
-    "method": "doi_part" | "fuzzy",
-    "part_id": int,
+    "method": "doi_part" | "fuzzy" | "item_unique",
+    "part_id": int,        (Part matches only)
     "item_id": int,
     "score": float,
     "title_in_bhl": str,
-    "year_in_bhl": int
+    "year_in_bhl": int,
+    "reviewed": bool
   }
 
 Run: python3 bhl_match.py [--key K ...] [--limit N] [--dry-run]
@@ -63,7 +64,7 @@ def normalize_words(s: str | None) -> list[str]:
 
 def fts_query(words: list[str], max_terms: int = 6) -> str:
     """Build a forgiving FTS5 query — OR over significant title terms."""
-    # Longest first, ties alphabetical: sorting on length alone left equal-
+    # Longest first, ties alphabetical: sorting on length alone leaves equal-
     # length words in set order, which Python randomises per run, so the
     # six-term cut (and the match) could differ between two runs.
     terms = sorted(set(words), key=lambda w: (-len(w), w))[:max_terms]

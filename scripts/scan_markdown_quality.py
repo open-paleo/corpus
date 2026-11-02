@@ -12,8 +12,6 @@ Detection modes:
   - Image-only stub: tiny markdown body that's mostly `![](image.jpeg)`
     references with little real prose. Indicates the source PDF is a pure
     scan with no text layer; marker had nothing to extract.
-    (Caught after horner1979 produced a 56-byte image-stub markdown that
-    then got corrupted by an unguarded translate-pass run.)
 
 With --apply, sets `manifest[key].conversion.vision_ocr_needed = True`
 (plus a reason string) for any flagged paper, so the next

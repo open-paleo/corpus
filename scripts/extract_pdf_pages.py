@@ -24,9 +24,9 @@ pdf_extracted_at + appends to acquisition.notes.
 
 Usage:
   scripts/extract_pdf_pages.py KEY PAGE_SPEC [--keep-source PATH]
-  scripts/extract_pdf_pages.py owen1854 "122-123"
-  scripts/extract_pdf_pages.py owen1854 "97, 122-130"
-  scripts/extract_pdf_pages.py owen1854 97, 122-130          # unquoted OK too
+  scripts/extract_pdf_pages.py KEY "122-123"
+  scripts/extract_pdf_pages.py KEY "97, 122-130"
+  scripts/extract_pdf_pages.py KEY 97, 122-130              # unquoted OK too
 """
 from __future__ import annotations
 
@@ -100,8 +100,7 @@ def main() -> int:
         print(f"  source kept at {backup}")
 
     # import_pages copies each page with only the objects it references, so a
-    # few pages cut from a whole volume come out at the size PyMuPDF's
-    # garbage=4 gave (checked on five 64 MB scans, within 0.5%).
+    # few pages cut from a whole volume do not carry the rest of the volume.
     out = pdfium.PdfDocument.new()
     out.import_pages(src, [p - 1 for p in pages])
 

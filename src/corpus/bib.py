@@ -92,9 +92,9 @@ def is_thesis(cit: dict) -> bool:
 def citation_venue(cit: dict) -> str:
     """Where a work appeared, for display and search: `journal` for an
     article, `booktitle` for a chapter, `school` for a thesis, `howpublished`
-    for a @misc, `publisher` for a standalone book. Since data-repo schema
-    1.10.0 (2026-10-02) theses and books no longer carry a journal-ish field,
-    so reading journal/booktitle alone leaves them blank."""
+    for a @misc, `publisher` for a standalone book. Theses and books carry no
+    journal or booktitle field (data-repo schema 1.10.0 and later), so reading
+    those alone leaves them blank."""
     for field in ("journal", "booktitle", "school", "howpublished", "publisher"):
         value = (cit.get(field) or "").strip()
         if value:
@@ -126,7 +126,7 @@ def collect_yaml_keys(root: Path, kind: str):
 
 def collect_json_keys(export: dict, kind: str):
     """collect_yaml_keys() over the data repo's dist/open-paleo.json, whose
-    "genera"/"clades" maps hold the same records (checked equal 2026-10-31)."""
+    "genera"/"clades" maps hold the same records."""
     return _collect(((doc.get("genus") or doc.get("clade") or name, doc, name)
                      for name, doc in (export.get(kind) or {}).items()
                      if isinstance(doc, dict)), kind)

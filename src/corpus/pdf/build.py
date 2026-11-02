@@ -4,11 +4,11 @@ Each image becomes a full page through img2pdf, which embeds JPEG and JPEG 2000
 data unchanged (DCTDecode / JPXDecode) and PNG/TIFF losslessly (FlateDecode),
 so "lossless" stitching is lossless. Pages are joined with pikepdf.
 
-Page size follows what the stitches have always had under PyMuPDF, checked on
-test images: the DPI an image declares, else 96 DPI, except JPEG 2000, which
-PyMuPDF always laid out at 72 DPI (BHL page scans), and a declared DPI below 10
-(gilmore1924c's PNGs say 0.381), also laid out at 72. Keeping the old sizes keeps
-the pixel count marker and vision see when they render a page at a fixed DPI.
+Page size: the DPI an image declares, else 96 DPI, except JPEG 2000 (BHL page
+scans), laid out at 72 DPI, and an image declaring a DPI below 10 (a bogus
+value such as 0.381), also laid out at 72. These are the sizes of the stitched
+PDFs already in archives, so marker and vision see the same pixel count when
+they render a page at a fixed DPI.
 
     from corpus.pdf.build import images_to_pdf
     images_to_pdf([path_or_jpeg_bytes, ...], out_path)

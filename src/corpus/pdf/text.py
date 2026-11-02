@@ -26,17 +26,18 @@ top-left coordinates, to PNG bytes.
 `font_differences(path)` reads each font's `/Encoding /Differences` table
 (pikepdf, independent of the backend).
 
-Backend: `PDF_BACKEND=pdfium` (the default since 2026-10-30) or
-`PDF_BACKEND=pymupdf`, kept for comparison. Running a repair under both and
-diffing its dry-run output is how each port is verified.
+Backend: `PDF_BACKEND=pdfium` (the default) or `PDF_BACKEND=pymupdf`, kept
+for comparison. Running a repair under both and diffing its dry-run output
+checks that the backends agree.
 
-What the pdfium backend normalises, so the repairs see what they saw before:
+What the pdfium backend normalises, so the repairs (written against PyMuPDF's
+output) see the same text on both backends:
 
 - Font names drop the subset prefix (`EAGIHG+OpenSans` -> `OpenSans`). The
   PyMuPDF backend does the same, so scripts compare bare names on both.
-  pdfium gives names in full, where PyMuPDF cut them at 24 characters
+  pdfium gives names in full, where PyMuPDF cuts them at 24 characters
   (`Universal-GreekwithMathPi`, PyMuPDF `...MathP`). Type 3 fonts have no
-  name in pdfium (PyMuPDF used the resource key, `T1`): font is "".
+  name in pdfium (PyMuPDF uses the resource key, `T1`): font is "".
 - pdfium writes a soft line-end hyphen as U+0002 and flags it with
   FPDFText_IsHyphen, and drops the line break that follows it. It comes back
   here as "-" followed by a line end, as PyMuPDF has it. This matters:
@@ -48,7 +49,7 @@ What the pdfium backend normalises, so the repairs see what they saw before:
 
 Blocks: PyMuPDF groups lines into blocks by layout; pdfium has no blocks. The
 pdfium backend returns one block per line. Scripts that only walk the
-block/line/span order (all current users) are unaffected.
+block/line/span order (all the repairs) are unaffected.
 
 text(): PyMuPDF returns its own block-ordered text with marks where it put
 them; pdfium returns line-ordered text after mark re-placement. A script
@@ -70,9 +71,9 @@ from pathlib import Path
 BACKEND = os.environ.get("PDF_BACKEND", "pdfium").lower()
 
 # Opt-in on-disk cache of each PDF's processed characters (pdfium backend),
-# for sessions that run several repairs over the whole corpus: a cached PDF
-# loads in ~40% of the time extraction takes (fonseca2024a: 0.5 s against
-# 1.3 s) but costs ~4-5 MB of disk per PDF, ~12 GB for the corpus, so it is
+# for runs of several repairs over the whole corpus: a cached PDF loads in
+# ~40% of the time extraction takes (0.5 s against 1.3 s for a 65-page paper)
+# but costs ~4-5 MB of disk per PDF, ~12 GB for the corpus, so it is
 # off unless PDF_TEXT_CACHE=1. Entries are keyed on the PDF's size and mtime
 # and on EXTRACTION_VERSION, which must be bumped whenever the extraction
 # below changes what it returns.
@@ -220,7 +221,7 @@ class _PdfiumDoc:
             box = (rect.left, height - rect.top, rect.right, height - rect.bottom)
             if not gen and box[3] - box[1] < 0.5:
                 # Type 3 fonts have no ascent/descent, so the loose box is a
-                # sliver (kocsis2013a: 0.2 pt tall); take the ink box instead.
+                # sliver (as little as 0.2 pt tall); take the ink box instead.
                 l, r_, b, t = (ctypes.c_double() for _ in range(4))
                 raw.FPDFText_GetCharBox(h, i, ctypes.byref(l), ctypes.byref(r_),
                                         ctypes.byref(b), ctypes.byref(t))
@@ -376,7 +377,7 @@ def _join_broken_lines(chars: list[dict]) -> list[dict]:
 
     pdfium starts a new line where the font changes and the baseline shifts a
     little, e.g. at an Elsevier companion-font accent: "Prieto-M\x01" then
-    "arquez" (ramírez-velasco2022a). PyMuPDF keeps those on one line. A break
+    "arquez". PyMuPDF keeps those on one line. A break
     is dropped only when the glyphs either side overlap vertically by at least
     half the smaller height and the next one starts within a third of a
     height of where the previous one ends (or over it), so a real line wrap,
@@ -444,8 +445,8 @@ def _place_marks(chars: list[dict]) -> list[dict]:
     # Candidate letters sorted by left edge. A letter can overlap a mark only
     # if it starts before the mark ends and ends after the mark starts, so with
     # the widest letter's width as a bound, only letters starting inside
-    # (mark.x0 - widest, mark.x1) need testing: a few per mark instead of the
-    # whole page (583k overlap tests on fonseca2024a's 65 pages before).
+    # (mark.x0 - widest, mark.x1) need testing: a few per mark instead of
+    # every letter on the page.
     letters = [j for j, c in enumerate(chars)
                if not c["generated"] and c["c"].isalpha() and c["c"] not in MARKS]
     letters.sort(key=lambda j: chars[j]["bbox"][0])
@@ -457,7 +458,7 @@ def _place_marks(chars: list[dict]) -> list[dict]:
         lo = bisect.bisect_right(xs, mx0 - widest)
         hi = bisect.bisect_left(xs, mx1)
         best, bi = 0.5, None
-        for j in sorted(letters[lo:hi]):          # page order, so ties resolve as before
+        for j in sorted(letters[lo:hi]):          # page order: a tie goes to the earlier letter
             if j == i:
                 continue
             o = overlap(chars[i], chars[j])
@@ -511,8 +512,8 @@ def font_differences(path) -> dict[str, dict[int, str]]:
     """{BaseFont: {code: glyph name}} from each font's /Encoding /Differences.
 
     Fonts are visited page by page, page resources first and then form
-    XObjects, and the first font seen with a given BaseFont wins: the order
-    PyMuPDF's get_fonts gave the scripts that used it. BaseFont keeps its
+    XObjects, and the first font seen with a given BaseFont wins: the same
+    order as PyMuPDF's get_fonts. BaseFont keeps its
     subset tag. Fonts without a Differences array are left out.
     """
     import pikepdf
@@ -534,8 +535,8 @@ def font_differences(path) -> dict[str, dict[int, str]]:
             for res_name, font in fonts.items():
                 if not isinstance(font, pikepdf.Dictionary):
                     continue
-                # Type 3 fonts have no BaseFont; PyMuPDF named them by their
-                # resource key (coria2013a: T1, T2), so do the same.
+                # Type 3 fonts have no BaseFont; PyMuPDF names them by their
+                # resource key (T1, T2), so do the same.
                 base = _pdf_name(font.get("/BaseFont")) or res_name.lstrip("/")
                 if base in out:
                     continue

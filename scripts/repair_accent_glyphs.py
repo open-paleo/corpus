@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Moved to corpus.repair.accents (see that module for what it does).
-
-Kept so the documented commands keep working; `corpus repair accents` is the
-same command, and `corpus repair all` runs every repair in one pass.
+"""Command-line entry for corpus.repair.accents (see that module for what it
+does). `corpus repair accents` runs the same code, and `corpus repair
+all` runs every repair in one pass.
 """
 from corpus.repair.accents import *  # noqa: F401,F403  (names other scripts import)
 from corpus.repair.accents import main

@@ -20,7 +20,8 @@ was put there by this machine's user and stays here.
   `update-bib` workflow's pull requests), `remote` (downloaded from the data
   repository on GitHub), or `auto` (the first of those that exists, else
   remote).
-- **Credentials:** `.env` holds `UNPAYWALL_EMAIL` and `ANTHROPIC_API_KEY`.
+- **Credentials:** `.env` holds `UNPAYWALL_EMAIL`, `ANTHROPIC_API_KEY` and,
+  for the BHL tier, the optional `BHL_API_KEY`.
   Mode 0600. Never commit, never log, never print it.
 - **Never commit content.** `manifest.json` is gitignored, and the content
   folders each hold a `.gitignore` of `*`. Don't remove those files, don't `git add -f` anything under them, and
@@ -30,7 +31,7 @@ was put there by this machine's user and stays here.
 
 ## Project notes (`docs/notes/`)
 
-Lessons and settled answers from past sessions. Start with
+Lessons and settled answers about the pipeline. Start with
 `docs/notes/README.md`, which says which file to read for which task. Always
 read `working-agreements.md`. Before converting or repairing a paper, read
 `conversion.md`. Before changing code, read `code.md`. When a session learns
@@ -131,20 +132,20 @@ The skill encodes the heuristics; the steps below are what it runs.
 
 ```bash
 # 1. Save the file under its exact citation key (from `corpus status --missing`).
-cp ~/Downloads/paper.pdf pdfs/cope1872a.pdf
+cp ~/Downloads/paper.pdf pdfs/KEY.pdf
 # 2. Record it (creates a stub entry, in_bib=False, if the key is not in the bib yet).
-./.runtime/venv/bin/corpus intake acquire cope1872a
+./.runtime/venv/bin/corpus intake acquire KEY
 #    A scan with no usable text layer: skip marker.
-./.runtime/venv/bin/corpus intake acquire cope1872a --vision-ocr "1800s scan; skip marker"
+./.runtime/venv/bin/corpus intake acquire KEY --vision-ocr "1800s scan; skip marker"
 # 3. Convert.
-./.runtime/venv/bin/corpus convert marker --workers 1 --key cope1872a
-./.runtime/venv/bin/corpus convert vision --key cope1872a    # for flagged keys
+./.runtime/venv/bin/corpus convert marker --workers 1 --key KEY
+./.runtime/venv/bin/corpus convert vision --key KEY    # for flagged keys
 # 4. QC, repairs, cleanup.
-./.runtime/venv/bin/corpus intake qc cope1872a
+./.runtime/venv/bin/corpus intake qc KEY
 ./.runtime/venv/bin/corpus qc scan
-./.runtime/venv/bin/corpus repair all --key cope1872a            # read, then --apply
-./.runtime/venv/bin/corpus clean ligatures --key cope1872a       # read, then --apply
-./.runtime/venv/bin/corpus clean frontmatter --key cope1872a     # read, then --apply
+./.runtime/venv/bin/corpus repair all --key KEY            # read, then --apply
+./.runtime/venv/bin/corpus clean ligatures --key KEY       # read, then --apply
+./.runtime/venv/bin/corpus clean frontmatter --key KEY     # read, then --apply
 # 5. Index and check.
 ./.runtime/venv/bin/corpus index
 ./.runtime/venv/bin/corpus status
@@ -195,7 +196,7 @@ automated check.
 ./.runtime/venv/bin/corpus search 'NEAR("tail club" ankylosaur, 10)'   # function syntax
 ./.runtime/venv/bin/corpus search --genera Pteropelyx
 ./.runtime/venv/bin/corpus search 'titanosaur' --year '202*'
-./.runtime/venv/bin/corpus search --key cope1889a --full-body
+./.runtime/venv/bin/corpus search --key KEY --full-body
 ```
 
 The tokenizer is `porter unicode61 remove_diacritics 2` ("México" matches

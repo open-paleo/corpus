@@ -4,10 +4,9 @@
 
 Vision OCR writes fluent text, so a skipped sentence or a plausible wrong
 character passes every other QC script. When the PDF also carries a text
-layer, that layer is a control. `pang2024a` (2026-10-14): a dropped
-fission-track sentence and 57 substituted characters (vomer -> jugal,
-humerus -> tibia, 庞 -> 渑) in a born-digital Chinese PDF, invisible after
-translation.
+layer, that layer is a control. In a born-digital Chinese PDF it can expose a
+dropped sentence and dozens of substituted characters (vomer -> jugal,
+humerus -> tibia, 庞 -> 渑) that are invisible after translation.
 
 Per page, the cached vision markdown (.runtime/cache/vision/{key}/page-NNNN.json)
 is aligned with the same page's text layer: CJK pages character by character,
@@ -21,7 +20,7 @@ others word by word. Reported per key:
           discounted by searching the whole document, so what remains is
           usually real omission. Check each one against the page image.
   agree   share of layer tokens the alignment matched; below 0.5 the layer is
-          garbage (broken CID map, e.g. hu2016a) and the key is marked unusable.
+          garbage (broken CID map) and the key is marked unusable.
   subs    small replacements (<= 4 tokens either side). On a born-digital CJK
           layer these are vision misreads; on Latin-script layers many are
           hyphenation and ligature noise, so read the list.
@@ -31,7 +30,7 @@ Report only; nothing is changed. Fixing is per paper: see docs/notes/conversion.
 
     scripts/audit_vision_textlayer.py                 # every claude-vision key
     scripts/audit_vision_textlayer.py --cjk           # keys whose text layer has CJK text
-    scripts/audit_vision_textlayer.py --key pang2024a --show   # list each drop and sub
+    scripts/audit_vision_textlayer.py --key KEY --show   # list each drop and sub
 """
 from __future__ import annotations
 

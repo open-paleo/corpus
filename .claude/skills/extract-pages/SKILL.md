@@ -52,7 +52,7 @@ If the requested pages would resolve to more than ~80% of the source PDF, **ask 
 The script:
 - Opens `pdfs/{key}.pdf` via pypdfium2.
 - Parses the spec, dedupes while preserving order, validates each page is in range.
-- Builds a new PDF with `out.insert_pdf(src, from_page=p-1, to_page=p-1)` per requested page (preserves original page streams losslessly).
+- Copies the requested pages into a new PDF with pypdfium2's `import_pages` (original page streams, losslessly; each page brings only the objects it references, so a few pages cut from a volume don't carry the rest of it).
 - Atomic-writes back to `pdfs/{key}.pdf` (`.tmp` + rename).
 - Updates `manifest[key].acquisition`:
   - `pdf_extracted_at`: ISO timestamp.
@@ -74,6 +74,11 @@ Output reports source page count + size, the resolved page list, output page cou
 # Tune the size-limit warning threshold (no behavior change beyond the warning):
 ./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" \
     --soft-limit-mb 120
+
+# Rewrite the PDF but leave manifest.json untouched (a PDF that isn't a
+# manifest key). The page range is then recorded nowhere: put it in the
+# commit message.
+./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" --no-manifest
 
 # Supplementary data: target supplementary/{parent}-{name}.pdf instead of pdfs/.
 # Here the positional key is the full supplementary stem {parent}-{name}.
@@ -99,7 +104,7 @@ After extraction, the on-disk PDF is different from what was previously converte
 Two cases:
 
 - **Acquisition was never run / no prior conversion**: the user's typical flow is `/intake` next, listing `{key}` as a fresh intake.
-- **Prior conversion existed (e.g., from a full-volume marker run)**: the markdown is now stale. Treat as a *replacement* re-intake: tell the user that `{key}` should be in their next `/intake` re-conversion list. Don't invalidate the conversion entry yourself — `/intake`'s Path D (replacement re-convert with `--force`) handles it cleanly.
+- **Prior conversion existed (e.g., from a full-volume marker run)**: the markdown is now stale. Treat as a *replacement* re-intake: tell the user that `{key}` should be in their next `/intake` re-conversion list. Don't invalidate the conversion entry yourself — `/intake`'s Path D (replacement re-convert with `--force`) handles it. A key already converted by vision OCR needs `convert_with_vision.py --key {key} --force`: without `--key` the script skips it, and without `--force` the page cache, which is keyed by page number, returns the old volume's pages.
 
 ## 5. Reporting
 
@@ -113,9 +118,9 @@ Tell the user:
 
 - **Destructive in-place replacement**: there's no undo besides git LFS history. If the source PDF was uncommitted (e.g., the user hasn't yet pushed it from a stitched intake), it's gone after extraction. Use `--keep-source PATH` if rollback matters.
 - **Cited→PDF page offsets**: when the user says "I want pages 39-40 of the original paper" but the PDF has frontmatter, **ask which physical PDF pages they mean** — same caveat as the scope-limited inline OCR pattern in `docs/notes/conversion.md` ("Scope-limited vision OCR for whole-volume PDFs"). Don't assume cited-page == PDF-page.
-- **Lossless extraction**: pypdfium2's `import_pages(src, pages)` preserves the original page content streams (text layer, embedded images, fonts). No re-rendering, no quality loss. The output is small purely because it has fewer pages, not because pages were re-encoded.
+- **Lossless extraction**: `import_pages` preserves the original page content streams (text layer, embedded images, fonts). No re-rendering, no quality loss. The output is small because it has fewer pages, not because pages were re-encoded.
 - **Page order**: `"130-122"` is a *reverse* range; the script honors it. If the user gives a list that's deliberately out of order (e.g. `"5, 1, 3"`), the output PDF preserves that order.
-- **`pdf_images/{key}/`**: stale after extraction. The user can `./.runtime/venv/bin/python scripts/extract_pdf_images.py --key {key} --force` to re-extract embedded raster images from the new (smaller) PDF, or wait for `/intake`'s replacement path to do it.
+- **`pdf_images/{key}/`**: stale after extraction, if it exists. Re-extract from the new PDF with `/extract-images {key}` (`corpus pdf images --key {key} --force`); intake does not extract images.
 - **Don't run on stitched-from-images PDFs** unless you mean it — those PDFs are already scope-limited via `/stitch`. Running extract-pages on top is a double-narrowing that's rarely useful.
 
 ## Decision pointer

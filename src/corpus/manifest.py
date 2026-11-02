@@ -1,10 +1,10 @@
-"""manifest.json: load it, change it safely, and the one shape an entry has.
+"""manifest.json: load it, change it safely, and the fields an entry has.
 
 The manifest is one JSON object keyed by citation key. Several scripts may
 run at once (marker in the background while a fetcher or an intake step
-writes), and each used to read the file at start and write the whole dict at
-the end, so the later writer silently undid the earlier one's changes.
-`update()` closes that: it takes an exclusive lock on manifest.json.lock,
+writes). A script that read the file at start and wrote the whole dict at the
+end would silently undo changes another script made in between.
+`update()` prevents that: it takes an exclusive lock on manifest.json.lock,
 re-reads the file under it, applies the caller's change, and writes
 atomically. Scripts keep their start-of-run copy for reading and call
 `update()` for each change.
@@ -75,7 +75,7 @@ def commit(m: dict, path: Path = MANIFEST) -> int:
     `annotations`, ...). Another script's changes to other entries, or to
     other fields of the same entry, survive. Returns the number of entries
     touched. A dict that did not come from load() is written whole, with a
-    warning: that is the old clobbering behaviour."""
+    warning: it can undo other scripts' changes."""
     snap = _snapshots.get(id(m))
     if snap is None:
         import sys

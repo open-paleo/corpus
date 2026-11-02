@@ -2,8 +2,7 @@
 # corpus-command: intake acquire | record dropped PDFs as acquired
 """
 Atomically write/update manifest acquisition entries for one or more
-PDFs that the user has dropped into pdfs/. Replaces the inline Python
-block the /intake skill ran for every batch.
+PDFs that the user has dropped into pdfs/.
 
 For each key:
   - If not in manifest, create a stub entry with in_bib=False and blank

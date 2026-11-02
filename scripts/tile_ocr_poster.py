@@ -33,7 +33,7 @@ collide with page caches.
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/tile_ocr_poster.py --key dalman2011z
+    ./.runtime/venv/bin/python scripts/tile_ocr_poster.py --key KEY
     ./.runtime/venv/bin/python scripts/tile_ocr_poster.py --key K --dry-run
     ./.runtime/venv/bin/python scripts/tile_ocr_poster.py --key K --panels 5 --rows 2
 """

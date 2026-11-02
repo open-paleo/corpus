@@ -4,7 +4,7 @@
 Acquisition from the PMC Open Access subset (NCBI's PMC Article Dataset).
 
 For open-access journals whose own sites refuse scripted requests (PeerJ,
-behind a Cloudflare challenge since 2026-10) and whose Unpaywall record has
+behind a Cloudflare challenge) and whose Unpaywall record has
 no direct PDF link. PMC's web pages are also behind a browser check, so this
 uses the two programmatic routes both services publish:
 
@@ -25,7 +25,7 @@ pmc_oa_dl_failed, unless the key already records a real source. Appends one
 line per key to .runtime/logs/pmc_oa.jsonl. Resume-safe.
 
 Usage:
-  ./.runtime/venv/bin/python scripts/fetch_pmc_oa.py --key baiano2023a
+  ./.runtime/venv/bin/python scripts/fetch_pmc_oa.py --key KEY
   ./.runtime/venv/bin/python scripts/fetch_pmc_oa.py          # every candidate
 """
 from __future__ import annotations

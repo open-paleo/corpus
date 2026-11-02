@@ -177,7 +177,7 @@ def main() -> int:
             )
 
     # Rows for markdown that is gone (deleted, or a key renamed by a bib
-    # split) are removed; they used to stay until a --rebuild.
+    # split) are removed.
     stale = [k for (k,) in con.execute("SELECT citation_key FROM index_state") if k not in seen]
     stale += [k for (k,) in con.execute("SELECT citation_key FROM papers")
               if k not in seen and k not in stale]

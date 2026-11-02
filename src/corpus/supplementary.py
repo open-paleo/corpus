@@ -5,7 +5,7 @@ Supplementary data (from papers already in pdfs/) is named
 `{parent_key}-{name}.pdf` and lives in `supplementary/`. Its converted
 markdown lives in `markdown/supplementary/{parent_key}-{name}.md`.
 
-Supplementary files are NOT top-level manifest keys (that would pollute the
+Supplementary files are NOT top-level manifest keys (that would clutter the
 bib-keyed manifest and show up as in_bib=False orphans on every /refresh-bib).
 Instead they are recorded as a sub-field on the PARENT paper's manifest entry:
 
@@ -18,11 +18,11 @@ Instead they are recorded as a sub-field on the PARENT paper's manifest entry:
         "notes":         str,
     }
 
-Because parent citation keys themselves can contain hyphens (e.g.
-`prieto-márquez2010c`, `geoffroysaint-hilaire1831a`), a supplementary stem
-cannot be split on the first (or last) hyphen. `resolve_parent` matches the
-LONGEST parent-key prefix that actually exists, so
-`prieto-márquez2010c-matrix` → (`prieto-márquez2010c`, `matrix`).
+Because parent citation keys themselves can contain hyphens (a hyphenated
+surname, e.g. `smith-jones2010a`), a supplementary stem cannot be split on the
+first (or last) hyphen. `resolve_parent` matches the LONGEST parent-key prefix
+that actually exists, so `smith-jones2010a-matrix` → (`smith-jones2010a`,
+`matrix`).
 """
 from __future__ import annotations
 

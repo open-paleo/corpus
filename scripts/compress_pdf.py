@@ -52,7 +52,7 @@ def render_reencoded(src_path: Path, max_dim: int, jpeg_q: int,
         scale = int(dpi) / 72.0
         pil = page.render(scale=scale).to_pil().convert("RGB")
         # The page keeps its point size as displayed. pdfium's get_size and
-        # render both already apply /Rotate (exon1976a has 21 such pages).
+        # render both already apply /Rotate.
         size = (w_pt, h_pt)
         long_edge = max(pil.size)
         if long_edge > max_dim:

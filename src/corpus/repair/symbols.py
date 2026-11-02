@@ -25,9 +25,8 @@ things in different families, so the family cannot be dropped from the key.
 Every entry in GLYPHS was read off a rendered page crop before being added.
 Unknown pairs are reported and left alone.
 
-    scripts/restore_symbol_glyphs.py --key kutty2007a --report
-    scripts/restore_symbol_glyphs.py --key kutty2007a            # dry run
-    scripts/restore_symbol_glyphs.py --key kutty2007a --apply
+    scripts/restore_symbol_glyphs.py --key KEY                   # dry run
+    scripts/restore_symbol_glyphs.py --key KEY --apply
     scripts/restore_symbol_glyphs.py --all --apply               # whole corpus
 """
 from __future__ import annotations
@@ -100,9 +99,9 @@ _add(["PiOne"], "p30", SYM, "©")
 _add(["WPMathA"], "c45", SYM, "~")
 _add(["MathematicalPi-Three"], "H20841", SYM, "|")
 _add(["AdvP4C4E74"], "C25", SYM, "≈")
-# GTS 2020 (Elsevier book): the en dash is dropped ~540-670 times per chapter
-# ("U–Pb", "Pliensbachian–Toarcian"); C14 is the degree sign ("7°C–9°C").
-# Both read off page crops in gale2020a/hesselbo2020a/ogg2020a.
+# An Elsevier book's maths font: C0 is the en dash, dropped hundreds of times a
+# chapter ("U–Pb", "Pliensbachian–Toarcian"); C14 is the degree sign
+# ("7°C–9°C"). Both read off rendered page crops.
 _add(["AdvMacMthSyN"], "C0", SYM, "–")
 _add(["AdvMacMthSyN"], "C14", SYM, "°")
 # Left unmapped on purpose, each checked and still ambiguous on the page:
@@ -229,8 +228,8 @@ def repair(doc, md: str, key: str, *, quiet: bool = True,
             # letter it belongs to: its x-origin sits over the base glyph, so
             # "Krasiejów" extracts as "Krasiejo<acute>w" while "Agnolín"
             # extracts as "Agnol<acute>ın". Picking the neighbour by reading
-            # order gets one of the two wrong. Needs bbox geometry — off by
-            # default until then.
+            # order gets one of the two wrong. It needs bbox geometry
+            # (corpus.repair.accents), so this is off by default.
             res["skipped"] += 1
             continue
         left_full, _ = normalize(o["left"])

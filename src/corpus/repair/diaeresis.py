@@ -18,7 +18,7 @@ Dry run by default; --apply writes. Idempotent: a repaired file has no "€"
 left next to a mapped word.
 
     ./.runtime/venv/bin/python scripts/repair_diaeresis_euro.py --all
-    ./.runtime/venv/bin/python scripts/repair_diaeresis_euro.py --key fonseca2024a --apply
+    ./.runtime/venv/bin/python scripts/repair_diaeresis_euro.py --key KEY --apply
 """
 import argparse
 import re
@@ -68,7 +68,7 @@ def word_map(doc) -> tuple[dict, int, int]:
 
     "€" glyphs in GlyphLessFont are skipped: that is the invisible text layer
     OCR tools add to scans, and its stray "€" characters overlapping a letter
-    are OCR noise, not diaeresis marks (welles1984a, hatcher1907a). A "€" that
+    are OCR noise, not diaeresis marks. A "€" that
     isn't over a vowel is counted as a real euro sign and not mapped.
     """
     wmap, n_dia, n_euro = {}, 0, 0
@@ -193,8 +193,8 @@ def repair_text(md: str, wmap: dict) -> tuple[str, int, list]:
                     out = out[:s] + wmap[w] + out[e:cut_a] + out[cut_b:]
                     site = s + len(wmap[w]) + (cut_a - e)
                 # Only where the mark was: "Lu, J. €," leaves "Lü, J. ," -> "Lü, J.,".
-                # (An earlier version ran this over everything before the site,
-                # stripping every space before punctuation in the file.)
+                # Run over everything before the site, this would strip every
+                # space before punctuation in the file.
                 if 0 < site < len(out) and out[site - 1] == " " and out[site] in ",.;:)]" \
                         and site >= 2 and not out[site - 2].isspace():
                     out = out[:site - 1] + out[site:]

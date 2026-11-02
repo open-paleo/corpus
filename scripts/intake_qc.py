@@ -4,8 +4,7 @@
 Bytes-per-page sanity check on a batch of just-converted keys, plus
 flagging of likely image-only stubs and T&F cover-stub patterns. Run
 after marker (or vision OCR) has produced markdown to triage which keys
-need an OCR escalation. Replaces the inline Python block the /intake
-skill ran for every batch.
+need an OCR escalation.
 
 Triage rules (from docs/notes/conversion.md, "Stub markdown"):
 

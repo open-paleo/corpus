@@ -3,7 +3,7 @@
 """
 Stitch the article-level JP2s for each BHL key into a single PDF at
 pdfs/{key}.pdf. corpus.pdf.build (img2pdf) embeds the JP2 stream unchanged, one
-page per image, at 72 DPI as these stitches have always been.
+page per image, at 72 DPI.
 
 After stitching, updates manifest[key].acquisition.pdf_path.
 

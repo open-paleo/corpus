@@ -17,7 +17,8 @@ def _gutter_x_in(block, w: int, ink_thresh: int, min_width: int) -> int | None:
     gap beside a figure don't read as a gutter. A blank strip counts only if
     BOTH sides carry at least MIN_COLUMN_INK_SHARE of the block's ink —
     without that, a single-column page whose text block sits off-centre reads
-    as two-column (jin2012a: text offset right, blank strip at 33% width).
+    as two-column (text offset right leaves a blank strip at a third of the
+    width).
     """
     if block.shape[0] < 40:
         return None

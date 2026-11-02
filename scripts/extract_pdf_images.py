@@ -45,9 +45,8 @@ LOG = log_path("pdf_images.jsonl")
 def _gray_if_source_gray(img, path: Path) -> None:
     """Rewrite a decoded PNG at the PDF image's own depth: 1-bit or grayscale.
 
-    pdfium decodes these (e.g. CCITT fax scans) to RGB. The pixels are the
-    same but the file is larger: exon1976a's 235 pages came to 142 MB, against
-    94 MB from PyMuPDF (grayscale); written 1-bit they are about half that.
+    pdfium decodes these (e.g. CCITT fax scans) to RGB: the same pixels in a
+    file several times larger than the 1-bit original needs.
     """
     from PIL import Image
     meta = img.get_metadata()

@@ -1,9 +1,10 @@
 """Model IDs and prices shared by the pipeline scripts (not a CLI).
 
 SONNET is the default for vision OCR, CJK translation, band/tile re-reads,
-blocked-page recovery, the specimen-ID scan and translation. HAIKU is not a
+blocked-page recovery and translation. HAIKU is not a
 default anywhere: on OCR and translation it changes printed taxon names, and it
-left half of a German paper untranslated. Change them here, not in each script. Confirm a new ID against the API first (GET /v1/models); don't guess.
+left half of a German paper untranslated. Change them here, not in each script. Confirm a new ID against the API
+first (GET /v1/models); don't guess.
 
 Every per-page and per-chunk cache records the model that wrote it and only
 reuses an entry written by the SAME model. Switching the default would then
@@ -11,10 +12,6 @@ make any rebuild of an existing key (a --pages repair, which rebuilds the
 whole markdown from cache) re-OCR every page. Models in one CACHE_COMPATIBLE
 group are treated as interchangeable for cache hits, so entries written by an
 earlier model stay valid. Only new calls use the new model.
-
-History: claude-sonnet-4-6 -> claude-sonnet-5 (2026-06/07) ->
-claude-sonnet-5-5 (2026-09-28). claude-haiku-4-5-20251001 -> claude-haiku-5-5
-(2026-10-07; evaluation in docs/notes/conversion.md, "Model choice").
 """
 
 SONNET = "claude-sonnet-5-5"
@@ -65,8 +62,7 @@ def cost(model: str, input_tokens: int = 0, output_tokens: int = 0,
          cache_read: int = 0, cache_write: int = 0) -> float:
     """USD for one call (or a sum of calls) at `model`'s prices.
 
-    Unknown models are priced as SONNET. Scripts used to price every call as
-    SONNET whatever --model said, so a Haiku run logged ~20x its real cost."""
+    Unknown models are priced as SONNET."""
     p = PRICES.get(model, PRICES[SONNET])
     return (input_tokens * p["in"] + output_tokens * p["out"]
             + cache_read * p["cache_r"] + cache_write * p["cache_w"]) / 1_000_000

@@ -3,13 +3,13 @@
 Each module exposes `repair(doc, md, key, quiet=...) -> (new_md, stats)`: an
 open PDF (corpus.pdf.text) and the markdown in, the repaired markdown out,
 no file I/O. Its own `main()` is the per-repair command (`corpus repair dash`,
-or the old `scripts/repair_dash_font_substitutions.py`).
+or `scripts/repair_dash_font_substitutions.py`).
 
 `run_all()` (`corpus repair all`) runs every repair on each paper in ONE pass:
 the markdown is read once, the PDF is opened once and only if some repair
 applies, the repairs run in REPAIRS order with each taking the previous one's
-output, and the file is written once. Run separately, each repair re-extracted
-every PDF's characters (~1 s per paper each, an hour per corpus sweep).
+output, and the file is written once. Run separately, each repair re-extracts
+every PDF's characters (~1 s per paper per repair).
 
 control_glyphs is not in the pass: it needs a hand-made code map per paper.
 """
@@ -60,8 +60,8 @@ def _ref_links_eligible(key: str, entry: dict, md: str) -> bool:
     return bool(GLUED.search(md))
 
 
-# Order matters only where two repairs touch the same characters; this is the
-# order they have been applied to the archive so far.
+# Order matters only where two repairs touch the same characters; the pass
+# gives the same result as running the per-repair commands in this order.
 REPAIRS: list[Repair] = [
     Repair("dash", "dash", lambda k, e, md: True,
            "Elsevier dash font: en/em dashes extracted as letters"),

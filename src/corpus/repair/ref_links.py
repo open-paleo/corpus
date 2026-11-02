@@ -31,8 +31,8 @@ That second check is what makes a corpus-wide sweep safe: nothing is rewritten
 on the strength of the pattern alone.
 
     scripts/repair_marker_ref_links.py --audit            # what's damaged
-    scripts/repair_marker_ref_links.py --key zheng2024a   # dry run
-    scripts/repair_marker_ref_links.py --key zheng2024a --apply
+    scripts/repair_marker_ref_links.py --key KEY          # dry run
+    scripts/repair_marker_ref_links.py --key KEY --apply
     scripts/repair_marker_ref_links.py --all --apply      # whole corpus
 
 Two related marker defects are deliberately NOT touched here, because unlike

@@ -1,9 +1,9 @@
 # Project notes
 
-Durable lessons from past sessions in this repo: pipeline gotchas, research
+Durable lessons for working in this repository: pipeline gotchas, research
 method, and answers already reached. They live in the repository rather than in
 Claude's per-machine memory so they survive a new checkout. `CLAUDE.md` covers how the
-pipeline works; these files cover what went wrong and what was decided.
+pipeline works; these files cover the traps and the decisions.
 
 | File | Read it when |
 |---|---|
@@ -17,13 +17,18 @@ A private archive built on this repository keeps its own notes beside these
 [README-archive.md](README-archive.md). Read that file too when it exists.
 
 Search before re-deriving: `grep -rn -i 'TERM' docs/notes/` is quicker than
-re-reading the papers, and several findings took hours to settle.
+re-reading the papers.
 
 ## Keeping these current
 
 - One entry per fact, under a `###` heading that states the claim.
-- Keep the evidence (citation keys, pages, counts, specimen numbers), so a
-  later reader can check the claim without re-running the search.
+- Describe the present state and what to do. A past mistake belongs here only
+  as a warning about a pitfall that can still happen.
+- Pipeline notes describe the situation ("a key with a diacritic", "two papers
+  by the same authors in the same year") rather than naming a paper, because
+  another checkout's copy of a paper can differ. Findings about papers keep
+  their evidence (citation keys, pages, specimen numbers) so a reader can
+  check the claim without re-running the search.
 - When a finding is overturned, edit or delete the entry. Don't append a
   contradiction below it.
 - Citation keys change at `/refresh-bib` (orphan `…z` keys migrate onto bib

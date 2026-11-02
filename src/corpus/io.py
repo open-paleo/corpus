@@ -1,8 +1,8 @@
 """File writes that survive Ctrl-C: write a sibling .tmp, then rename over.
 
-The JSON format is the one the manifest has always had (indent 2, sorted
-keys, ASCII-escaped, no trailing newline), so switching a script to this
-helper never rewrites a file it did not change.
+The JSON format is manifest.json's (indent 2, sorted keys, ASCII-escaped,
+no trailing newline), so rewriting unchanged data reproduces the file byte
+for byte.
 """
 from __future__ import annotations
 

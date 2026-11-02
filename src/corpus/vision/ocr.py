@@ -62,7 +62,7 @@ def select_prompt(manifest: dict, key: str, extra_context: str = "") -> tuple[st
     return text, pid
 
 
-# Output cap per page. Was 4096, which a dense reference page exceeds; the
+# Output cap per page. A dense reference page can exceed 4096 tokens; the
 # stop_reason check in ocr_one_page() turns any overrun into a visible failure.
 MAX_OUTPUT_TOKENS = 16000
 
@@ -100,10 +100,9 @@ async def ocr_one_page(client, model: str, prompt_text: str, prompt_id: str,
     markdown = "".join(text_parts).strip()
     usage = msg.usage
     # A page that hits the output cap is TRUNCATED, and nothing downstream
-    # notices: the run reports ok, bytes-per-page looks normal. lucas1995z's
-    # dense three-column reference page stopped at exactly 4096 tokens,
-    # mid-entry, losing its last five references. Refuse to cache it, so the
-    # page surfaces as a FAILED marker instead of shipping short.
+    # notices: the run reports ok, bytes-per-page looks normal, and the end of
+    # the page is simply missing. Refuse to cache it, so the page surfaces as
+    # a FAILED marker instead of shipping short.
     if msg.stop_reason == "max_tokens":
         raise RuntimeError(
             f"output truncated at max_tokens={MAX_OUTPUT_TOKENS} "

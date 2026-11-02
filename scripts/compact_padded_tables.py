@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Trim marker's whitespace-padded table cells in markdown/{key}.md.
 
-Marker sometimes pads a table's cells out to thousands of spaces: sohl1960z
-had a 330 KB table that was 99% whitespace, and saitta2026z a 122 KB one.
+Marker sometimes pads a table's cells out to thousands of spaces, giving a
+table of hundreds of KB that is 99% whitespace.
 Nothing is lost or duplicated (compare "Marker can blow one table up" in docs/notes/conversion.md, where
 cells ARE duplicated and vision re-OCR is the fix); the file is just bloated
 and unreadable. This rewrites every `|` row with its cells stripped, and
@@ -10,7 +10,7 @@ separator rows as `|---|`.
 
 Safety: refuses to write unless the file's non-whitespace text (ignoring the
 dashes of separator rows) is unchanged. Before running it, check that the
-table's page is fully covered by the markdown; see the memory note.
+table's page is fully covered by the markdown.
 
 Usage:
   ./.runtime/venv/bin/python scripts/compact_padded_tables.py --key KEY [--key KEY2] [--apply]
