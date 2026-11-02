@@ -7,14 +7,10 @@ be stitched.
 
 Why this way
 ------------
-A blocked page usually passes once cut into pieces. Cutting it into
-overlapping halves and rejoining them with a fuzzy suffix/prefix match (the
-older method) fails: on a two-column page the overlap band holds text from
-both columns and the match cannot dedupe it, so paragraphs come out twice or
-in the wrong order (luo1994a p18: acknowledgements and a second "References"
-heading in the middle of the last body column), and single-column pages
-carried about 25% extra words. Removing exact repeats afterwards cannot
-restore order.
+A blocked page usually passes once cut into pieces, and the pieces must not
+overlap: text in an overlap band is read twice, and on a two-column page the
+band holds both columns, so no suffix/prefix match can rejoin the pieces in
+order. Cutting only on whitespace leaves nothing to rejoin.
 
 Here every cut falls on whitespace, so pieces never share text:
 
@@ -112,11 +108,9 @@ def gutter_zones(img: Image.Image, gx: int) -> list[Image.Image]:
 
     A band is full-width only where ink actually crosses the gutter (a title,
     a wide figure or table, a centred running head). Everything else is split
-    left/right at gx. `column_regions()` instead asks for ink on BOTH sides of
-    the gutter in each slice, so a band where one column is short or blank is
-    taken as full-width and read straight across two columns (lü2008b p6,
-    carter2003a p14: a heading from one column followed by the other column's
-    references).
+    left/right at gx, including a band where one column is short or blank:
+    read across, it would put one column's heading before the other column's
+    text (lü2008b p6, carter2003a p14).
     """
     gray = np.asarray(img.convert("L"))
     h, w = gray.shape
