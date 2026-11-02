@@ -451,3 +451,33 @@ def test_tier_candidates_and_records(tmp_path, monkeypatch):
     assert tier.record_failure(failed, "pmc_oa_not_found")
     tier.record_pdf(failed, "pmc_oa", "k", "https://x")
     assert "previous_source" not in failed["acquisition"]
+
+
+def test_extract_pdf_images_skip_force_and_swap(tmp_path, monkeypatch):
+    import io as _io
+    import sys
+    from PIL import Image
+    import extract_pdf_images as X
+    from corpus.pdf.build import images_to_pdf
+    pdfs, out = tmp_path / "pdfs", tmp_path / "pdf_images"
+    pdfs.mkdir()
+    buf = _io.BytesIO()
+    Image.new("RGB", (40, 30), (200, 10, 10)).save(buf, format="JPEG")
+    images_to_pdf([buf.getvalue()], pdfs / "k2000a.pdf")
+    monkeypatch.setattr(X, "PDF_DIR", pdfs)
+    monkeypatch.setattr(X, "OUT_DIR", out)
+    monkeypatch.setattr(X, "LOG", tmp_path / "log.jsonl")
+    monkeypatch.setattr(sys, "argv", ["x", "--key", "k2000a"])
+    assert X.main() == 0
+    files = sorted(p.name for p in (out / "k2000a").iterdir())
+    assert files == ["p0001-i001.jpg"]
+    (out / "k2000a" / "stale.png").write_bytes(b"x")
+    assert X.main() == 0                                  # skipped: folder has images
+    assert (out / "k2000a" / "stale.png").exists()
+    monkeypatch.setattr(sys, "argv", ["x", "--key", "k2000a", "--force"])
+    assert X.main() == 0                                  # rebuilt from scratch
+    assert sorted(p.name for p in (out / "k2000a").iterdir()) == files
+    assert not (out / "k2000a.tmp").exists()
+    monkeypatch.setattr(sys, "argv", ["x"])
+    with pytest.raises(SystemExit):
+        X.main()                                          # neither keys nor --all
