@@ -16,7 +16,7 @@ its key with --key) and no PDF on disk:
      (s3://bhl-open-data/images/{BarCode}/{BarCode}_{seq}.jp2), cached in
      bhl_images/{key}/. biodiversitylibrary.org itself is not used: its PDF
      endpoints are behind Cloudflare.
-  3. A lossless PDF of those images (stitch_bhl_pdfs.stitch_one), recorded as
+  3. A lossless PDF of those images (corpus.bhl.stitch_jp2s), recorded as
      acquisition.source = "bhl" with conversion.vision_ocr_needed set: the
      paper then shows up in /intake (intake_discover: "unconverted") and goes
      to vision OCR like any other scan. BHL's own OCR text is not kept as the
@@ -43,22 +43,20 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sqlite3
 import sys
 import urllib.parse
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 from pathlib import Path
 
+from corpus.bhl import connect, stitch_jp2s
+from corpus.bib import page_range
 from corpus.config import ROOT as ARCHIVE, PDF_DIR, RUNTIME, cache_dir
-from corpus.fetch import http
-from corpus.io import atomic_write_bytes, atomic_write_text
+from corpus.fetch import http, tier
+from corpus.io import atomic_write_bytes, atomic_write_text, jsonl_append
 from corpus.keys import add_key_args, resolve_keys
-from corpus.manifest import commit as manifest_commit, failed_source, load as manifest_load
-from stitch_bhl_pdfs import stitch_one
+from corpus.manifest import commit as manifest_commit, load as manifest_load
 
-DB = RUNTIME / "bhl_dumps" / "bhl.db"
 IMG_DIR = ARCHIVE / "bhl_images"
 OCR_CACHE = cache_dir("bhl_ocr")      # page OCR, read only to narrow volume matches
 LOG = RUNTIME / "logs" / "bhl_fetch.jsonl"
@@ -160,21 +158,6 @@ def printed_number(api_page: dict) -> int | None:
     return None
 
 
-def parse_page_range(s: str | None) -> tuple[int | None, int | None]:
-    """Parse citation 'pages' field. Returns (start, end) or (None, None)."""
-    if not s:
-        return None, None
-    s = re.sub(r"^p+\.?\s*", "", s.strip(), flags=re.I)
-    m = re.match(r"^(\d+)\s*[-–—]+\s*(\d+)\b", s)
-    if m:
-        a, b = int(m.group(1)), int(m.group(2))
-        return (a, b) if b >= a else (a, None)
-    m = re.match(r"^(\d+)\b", s)
-    if m:
-        return int(m.group(1)), int(m.group(1))
-    return None, None
-
-
 # A print page number near the start or end of an OCR page.
 PRINT_PAGE_RE = re.compile(r"(?:^|\n)\s*\[?(?:Page\s*|p\.?\s*)?(\d{2,5})\b", re.IGNORECASE)
 
@@ -213,7 +196,7 @@ def narrow_item(item_id: int, pages: dict[int, tuple[int, str | None]], cite: di
     (+-2, for unnumbered plates) are kept: a stray "120" on another page of
     the volume can no longer stretch the range (osborn1903a asked for 609
     pages before this)."""
-    start, end = parse_page_range(cite.get("pages"))
+    start, end = page_range(cite.get("pages"))
     if not start:
         return [], "no page range in the citation: pass --item-seqs"
     end = end or start
@@ -304,7 +287,7 @@ def fetch_one(c, key: str, entry: dict, item_seqs: list[int] | None) -> dict:
     rec.update(pages=len(seqs), jp2_saved=saved, jp2_missing=missing, note=note)
     if not saved or missing:
         return {**rec, "outcome": "jp2_incomplete"}
-    n_pages, n_bytes = stitch_one(key, IMG_DIR / key, PDF_DIR / f"{key}.pdf")
+    n_pages, n_bytes = stitch_jp2s(IMG_DIR / key, PDF_DIR / f"{key}.pdf")
     return {**rec, "outcome": "ok", "pdf_pages": n_pages, "pdf_bytes": n_bytes,
             "barcode": barcode, "seqs": [seqs[0], seqs[-1]]}
 
@@ -320,11 +303,7 @@ def main() -> int:
     item_seqs = parse_seqs(args.item_seqs) if args.item_seqs else None
     if item_seqs and len(named) != 1:
         raise SystemExit("--item-seqs needs exactly one --key")
-    if not DB.exists():
-        print(f"ERROR: {DB} not found: run scripts/bhl_setup.py, then scripts/bhl_index.py",
-              file=sys.stderr)
-        return 2
-
+    c = connect().cursor()
     manifest = manifest_load()
     for k in named:
         if not (manifest.get(k) or {}).get("bhl_match"):
@@ -339,40 +318,31 @@ def main() -> int:
                and not (PDF_DIR / f"{k}.pdf").exists()]
     print(f"BHL fetch: {len(todo)} accepted match(es) to fetch")
 
-    c = sqlite3.connect(DB).cursor()
-    LOG.parent.mkdir(parents=True, exist_ok=True)
     PDF_DIR.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}
-    with LOG.open("a", encoding="utf-8") as log_fh:
-        for i, key in enumerate(todo, 1):
-            entry = manifest[key]
-            now = datetime.now(timezone.utc).isoformat()
-            rec = fetch_one(c, key, entry, item_seqs)
-            rec["ts"] = now
-            log_fh.write(json.dumps(rec) + "\n")
-            counts[rec["outcome"]] = counts.get(rec["outcome"], 0) + 1
-            if rec["outcome"] == "ok":
-                acq = entry.get("acquisition") or {}
-                prior = acq.get("source")
-                entry["acquisition"] = {
-                    "source": "bhl",
-                    "url": (f"https://www.biodiversitylibrary.org/part/{rec['part_id']}"
-                            if rec.get("part_id") else
-                            f"https://www.biodiversitylibrary.org/item/{rec['item_id']}"),
-                    "pdf_path": f"pdfs/{key}.pdf", "fetched_at": now,
-                    "pdf_source": (f"stitched from {rec['pdf_pages']} BHL JP2s "
-                                   f"({rec['barcode']}, seqs {rec['seqs'][0]}-{rec['seqs'][1]})"),
-                    **({"previous_source": prior} if prior and not failed_source(prior) else {}),
-                }
-                conv = entry.setdefault("conversion", {})
-                conv["vision_ocr_needed"] = True
-                conv["vision_ocr_reason"] = "BHL scan (page images)"
-                print(f"[{i:>3}/{len(todo)}] {key:25s} OK   {rec['pdf_pages']:>3}p  "
-                      f"{rec['pdf_bytes'] / 1e6:6.1f} MB  {rec['note']}")
-            else:
-                print(f"[{i:>3}/{len(todo)}] {key:25s} {rec['outcome']}"
-                      + (f"  {rec['note']}" if rec.get("note") else ""))
-            manifest_commit(manifest)
+    for i, key in enumerate(todo, 1):
+        entry = manifest[key]
+        rec = fetch_one(c, key, entry, item_seqs)
+        rec["ts"] = tier.now()
+        jsonl_append(LOG, rec)
+        counts[rec["outcome"]] = counts.get(rec["outcome"], 0) + 1
+        if rec["outcome"] == "ok":
+            url = (f"https://www.biodiversitylibrary.org/part/{rec['part_id']}"
+                   if rec.get("part_id") else
+                   f"https://www.biodiversitylibrary.org/item/{rec['item_id']}")
+            tier.record_pdf(entry, "bhl", key, url,
+                            pdf_source=(f"stitched from {rec['pdf_pages']} BHL JP2s "
+                                        f"({rec['barcode']}, seqs {rec['seqs'][0]}-"
+                                        f"{rec['seqs'][1]})"))
+            conv = entry.setdefault("conversion", {})
+            conv["vision_ocr_needed"] = True
+            conv["vision_ocr_reason"] = "BHL scan (page images)"
+            print(f"[{i:>3}/{len(todo)}] {key:25s} OK   {rec['pdf_pages']:>3}p  "
+                  f"{rec['pdf_bytes'] / 1e6:6.1f} MB  {rec['note']}")
+        else:
+            print(f"[{i:>3}/{len(todo)}] {key:25s} {rec['outcome']}"
+                  + (f"  {rec['note']}" if rec.get("note") else ""))
+        manifest_commit(manifest)
     manifest_commit(manifest)
 
     print("\nBHL fetch summary:")

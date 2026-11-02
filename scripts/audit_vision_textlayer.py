@@ -167,7 +167,7 @@ def main() -> int:
     ap.add_argument("--json", help="also write rows to this JSON file")
     args = ap.parse_args()
     manifest = manifest_load()
-    keys = [unicodedata.normalize("NFC", k) for k in args.key] if args.key else sorted(
+    keys = list(args.key) if args.key else sorted(
         k for k, e in manifest.items() if (e.get("conversion") or {}).get("tool") == "claude-vision")
     rows = []
     for k in keys:

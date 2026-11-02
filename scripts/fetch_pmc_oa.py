@@ -35,13 +35,12 @@ import json
 import sys
 import time
 import urllib.parse
-from datetime import datetime, timezone
 
 from corpus.config import PDF_DIR, log_path
-from corpus.fetch import http
-from corpus.io import atomic_write_bytes
+from corpus.fetch import http, tier
+from corpus.io import atomic_write_bytes, jsonl_append
 from corpus.keys import add_key_args, resolve_keys
-from corpus.manifest import commit as manifest_commit, failed_source, load as manifest_load
+from corpus.manifest import commit as manifest_commit, load as manifest_load
 
 LOG = log_path("pmc_oa.jsonl")
 EPMC_SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
@@ -118,42 +117,29 @@ def main() -> int:
     only = set(resolve_keys(args)) or None
 
     manifest = manifest_load()
-    candidates = [k for k, e in manifest.items()
-                  if (only is None or k in only) and e.get("doi")
-                  and not (PDF_DIR / f"{k}.pdf").exists()]
+    candidates = tier.candidates(manifest, only)
     print(f"PMC OA candidates (DOI, no PDF on disk): {len(candidates)}")
     PDF_DIR.mkdir(parents=True, exist_ok=True)
-    LOG.parent.mkdir(parents=True, exist_ok=True)
 
     counts = {"pdf": 0, "not_found": 0, "no_oa": 0, "dl_failed": 0}
-    with LOG.open("a", encoding="utf-8") as log_fh:
-        for i, key in enumerate(candidates, 1):
-            entry = manifest[key]
-            if not isinstance(entry.get("acquisition"), dict):
-                entry["acquisition"] = {}
-            acq = entry["acquisition"]
-            now = datetime.now(timezone.utc).isoformat()
-            outcome, extras, pdf = fetch_one(entry["doi"])
-            counts[outcome] += 1
-            if outcome == "pdf":
-                atomic_write_bytes(PDF_DIR / f"{key}.pdf", pdf)
-                entry["acquisition"] = {"source": "pmc_oa", "url": extras["url"],
-                                        "pdf_path": f"pdfs/{key}.pdf", "fetched_at": now,
-                                        "license": extras.get("license")}
-                print(f"[{i:>4}/{len(candidates)}] {key:30s} OK   {len(pdf) / 1024:.0f} KB  "
-                      f"{extras['pmcid']} ({extras.get('license')})")
-            else:
-                if not acq.get("source") or failed_source(acq.get("source")):
-                    acq["source"] = f"pmc_oa_{outcome}"
-                    acq["fetched_at"] = now
-                print(f"[{i:>4}/{len(candidates)}] {key:30s} {outcome}"
-                      + (f"  {extras['error']}" if extras.get("error") else ""))
-            log_fh.write(json.dumps({"ts": now, "key": key, "doi": entry["doi"],
-                                     "outcome": outcome, **extras}) + "\n")
-            log_fh.flush()
-            if i % 25 == 0:
-                manifest_commit(manifest)
-            time.sleep(DELAY)
+    for i, key in enumerate(candidates, 1):
+        entry = manifest[key]
+        outcome, extras, pdf = fetch_one(entry["doi"])
+        counts[outcome] += 1
+        if outcome == "pdf":
+            atomic_write_bytes(PDF_DIR / f"{key}.pdf", pdf)
+            tier.record_pdf(entry, "pmc_oa", key, extras["url"], license=extras.get("license"))
+            print(f"[{i:>4}/{len(candidates)}] {key:30s} OK   {len(pdf) / 1024:.0f} KB  "
+                  f"{extras['pmcid']} ({extras.get('license')})")
+        else:
+            tier.record_failure(entry, f"pmc_oa_{outcome}")
+            print(f"[{i:>4}/{len(candidates)}] {key:30s} {outcome}"
+                  + (f"  {extras['error']}" if extras.get("error") else ""))
+        jsonl_append(LOG, {"ts": tier.now(), "key": key, "doi": entry["doi"],
+                           "outcome": outcome, **extras})
+        if i % 25 == 0:
+            manifest_commit(manifest)
+        time.sleep(DELAY)
     manifest_commit(manifest)
 
     print("\nPMC OA summary:")

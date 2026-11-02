@@ -14,22 +14,13 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 
-from corpus.pdf.build import images_to_pdf
+from corpus.bhl import stitch_jp2s
 from corpus.config import ROOT as ARCHIVE, PDF_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_arg
 
 JP2_DIR = ARCHIVE / "bhl_images"
-def stitch_one(key: str, jp2_dir: Path, pdf_path: Path) -> tuple[int, int]:
-    """Stitch JP2s in jp2_dir into a single PDF. Returns (n_pages, bytes)."""
-    jp2_files = sorted(jp2_dir.glob("page-*.jp2"))
-    if not jp2_files:
-        return 0, 0
-    return len(jp2_files), images_to_pdf(jp2_files, pdf_path)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--key", type=key_arg, action="append", default=[])
@@ -58,7 +49,7 @@ def main() -> int:
             print(f"  [skip] {k} (already stitched)")
             continue
         try:
-            n_pp, n_bytes = stitch_one(k, JP2_DIR / k, pdf_path)
+            n_pp, n_bytes = stitch_jp2s(JP2_DIR / k, pdf_path)
         except Exception as e:
             n_err += 1
             print(f"  [err]  {k}: {e}")

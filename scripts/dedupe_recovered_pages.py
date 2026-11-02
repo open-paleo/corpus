@@ -49,11 +49,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from corpus.config import ROOT
 from corpus.keys import key_arg
+from corpus.io import atomic_write_text
 
 CACHE_ROOT = ROOT / ".runtime" / "cache" / "vision"
 MARKDOWN_DIR = ROOT / "markdown"
@@ -121,9 +121,7 @@ def load_cache_pages(key: str) -> dict[int, Path]:
 
 
 def atomic_write(path: Path, data: str) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(data, encoding="utf-8")
-    os.replace(tmp, path)
+    atomic_write_text(path, data)
 
 
 def main() -> int:

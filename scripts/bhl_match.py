@@ -35,15 +35,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sqlite3
 import sys
 from collections import Counter
+from corpus.bhl import connect, match_item
 from corpus.config import PDF_DIR, RUNTIME
 from corpus.keys import add_key_args, resolve_keys
 from corpus.manifest import commit as manifest_commit, load as manifest_load
-from bhl_item_match import match_item
 
-DB = RUNTIME / "bhl_dumps" / "bhl.db"
 LOG = RUNTIME / "logs" / "bhl_match.jsonl"
 
 MIN_SCORE = 7.0           # accept threshold
@@ -64,7 +62,10 @@ def normalize_words(s: str | None) -> list[str]:
 
 def fts_query(words: list[str], max_terms: int = 6) -> str:
     """Build a forgiving FTS5 query — OR over significant title terms."""
-    terms = sorted(set(words), key=lambda w: -len(w))[:max_terms]
+    # Longest first, ties alphabetical: sorting on length alone left equal-
+    # length words in set order, which Python randomises per run, so the
+    # six-term cut (and the match) could differ between two runs.
+    terms = sorted(set(words), key=lambda w: (-len(w), w))[:max_terms]
     return " OR ".join(f'"{t}"' for t in terms) if terms else ""
 
 
@@ -156,12 +157,8 @@ def main() -> int:
     args = ap.parse_args()
     only = set(resolve_keys(args)) or None
 
-    if not DB.exists():
-        print(f"ERROR: {DB} not found: run scripts/bhl_setup.py, then scripts/bhl_index.py",
-              file=sys.stderr)
-        return 2
+    conn = connect()
     manifest = manifest_load()
-    conn = sqlite3.connect(DB)
     c = conn.cursor()
 
     # Eligible: in the bib, no PDF on disk, not matched before (or named).

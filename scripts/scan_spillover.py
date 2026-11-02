@@ -127,7 +127,7 @@ def main() -> None:
 
     manifest = manifest_load()
     if args.key:
-        keys = [unicodedata.normalize("NFC", k) for k in args.key]
+        keys = list(args.key)            # key_arg: NFC and validated
     else:
         keys = [k for k, e in manifest.items() if args.all or in_default_scope(e, args.chapters)]
 

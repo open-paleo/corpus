@@ -65,6 +65,7 @@ import argparse
 import re
 from corpus.config import MD_DIR
 from corpus.keys import key_arg
+from corpus.io import atomic_write_text
 
 HEAD_LIMIT = 4000        # only blocks starting within this many chars are eligible
 REF_HEADING_LIMIT = 1500  # a bare "REFERENCES" heading is junk only this early
@@ -1627,9 +1628,7 @@ def main() -> int:
         if len(samples) < args.show:
             samples.append((f.name, len(orig) - len(new), removed, n_wm))
         if args.apply:
-            tmp = f.with_suffix(".md.tmp")
-            tmp.write_text(new, encoding="utf-8")
-            tmp.replace(f)
+            atomic_write_text(f, new)
 
     mode = "APPLIED" if args.apply else "DRY RUN (no files written)"
     print(f"=== strip_frontmatter — {mode} ===")

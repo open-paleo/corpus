@@ -55,6 +55,27 @@ def parse_bib(path: Path) -> dict:
     return out
 
 
+_RANGE_RE = re.compile(r"(\d+)\s*(?:-{1,2}|–|—)\s*(\d+)\b")
+
+
+def page_range(pages: str | None) -> tuple[int | None, int | None]:
+    """(first, last) printed page of a citation's `pages` field: "187-201",
+    "pp. 187–201", "501-505, pl. 3" -> (187, 201) ...; "169" or "p. 169" ->
+    (169, 169); an abbreviated "501-5" -> (501, None). Anything else, a
+    book's "250 pp." included, -> (None, None): it is not a page range."""
+    if not pages or not isinstance(pages, str):
+        return None, None
+    s = re.sub(r"^p{1,2}\.?\s*", "", pages.strip(), flags=re.I)
+    m = _RANGE_RE.match(s)
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        return (a, b) if b >= a else (a, None)
+    m = re.fullmatch(r"(\d+)\.?", s)
+    if m:
+        return int(m.group(1)), int(m.group(1))
+    return None, None
+
+
 THESIS_TYPES = {"phdthesis", "mastersthesis"}
 
 

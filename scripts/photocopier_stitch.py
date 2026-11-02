@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import glob
 import io
-import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -46,6 +45,7 @@ from corpus.config import ROOT as ARCHIVE
 pillow_heif.register_heif_opener()
 from corpus.pdf.build import images_to_pdf
 from corpus.keys import key_arg
+from corpus.manifest import update as manifest_update
 
 EXTS = (".heic", ".heif", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".jp2")
 
@@ -106,18 +106,23 @@ def main() -> int:
     print(f"  wrote {dst}: {len(files)} pages, {mb:.1f} MB")
 
     # manifest acquisition annotation (only if key exists)
-    mp = ARCHIVE / "manifest.json"
-    m = json.loads(mp.read_text(encoding="utf-8"))
-    if key in m:
+    # Through the manifest lock: a direct read-modify-write here could
+    # undo a concurrent script's changes (corpus.manifest).
+    sel = f" (selected {args.select[0]}..{args.select[1]})" if args.select else ""
+
+    def annotate(m: dict) -> bool:
+        if key not in m:
+            return False
         acq = m[key].setdefault("acquisition", {})
         acq["pdf_path"] = f"pdfs/{key}.pdf"
         acq["pdf_stitched_at"] = datetime.now(timezone.utc).isoformat()
-        sel = f" (selected {args.select[0]}..{args.select[1]})" if args.select else ""
         acq["pdf_source"] = (f"photocopier-stitched from {len(files)} source "
                              f"photos{sel} (grayscale flat-field, background whitened)")
-        tmp = mp.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(m, indent=2, sort_keys=True, default=str), encoding="utf-8")
-        tmp.replace(mp)
+        return True
+
+    found = {}
+    manifest_update(lambda m: found.setdefault("ok", annotate(m)))
+    if found["ok"]:
         print("  manifest acquisition annotated")
     else:
         print(f"  ! {key} not in manifest — PDF written, acquisition not annotated")

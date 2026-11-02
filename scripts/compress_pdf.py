@@ -24,7 +24,6 @@ Usage:
 import argparse
 import io
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,6 +33,7 @@ from corpus.pdf.build import images_to_pdf_bytes
 from corpus.config import MANIFEST, PDF_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_arg
+from corpus.io import atomic_write_bytes
 
 def render_reencoded(src_path: Path, max_dim: int, jpeg_q: int,
                      dpi_cap: int = 200) -> bytes:
@@ -81,7 +81,7 @@ def main() -> int:
                     help="Re-compress even if already under target.")
     args = ap.parse_args()
 
-    key = unicodedata.normalize("NFC", args.key)
+    key = args.key                       # key_arg: NFC and validated
     pdf_path = PDF_DIR / f"{key}.pdf"
     if not pdf_path.exists():
         print(f"ERROR: {pdf_path} not found", file=sys.stderr)
@@ -123,9 +123,7 @@ def main() -> int:
         print(f"  WARNING: still {final_mb:.1f} MB after step-down "
               f"(min max_dim={max_dim}, q={jpeg_q}); writing anyway.")
 
-    tmp = pdf_path.with_suffix(".pdf.tmp")
-    tmp.write_bytes(data)
-    tmp.replace(pdf_path)
+    atomic_write_bytes(pdf_path, data)
     print(f"  wrote {pdf_path.name}: {orig_mb:.1f} -> {final_mb:.1f} MB "
           f"({100 * (1 - final_mb / orig_mb):.0f}% smaller)")
 

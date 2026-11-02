@@ -62,6 +62,7 @@ from corpus.pdf.render import render_pil
 from corpus.io import atomic_write_json
 from corpus.config import require_env
 from corpus.vision.client import make as make_client
+from corpus.io import atomic_write_text
 MODEL = SONNET
 PROMPT_ID = "verbatim-v1"
 DPI = 150
@@ -422,9 +423,7 @@ def splice_into_markdown(md_path: Path, page_number: int, recovered: str) -> boo
     new_text, n = pattern.subn(recovered, text, count=1)
     if n == 0:
         return False
-    tmp = md_path.with_suffix(".md.tmp")
-    tmp.write_text(new_text, encoding="utf-8")
-    tmp.replace(md_path)
+    atomic_write_text(md_path, new_text)
     return True
 
 

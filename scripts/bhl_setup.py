@@ -7,14 +7,12 @@ Total ~92 MB gzipped. Resume-safe: skips files already on disk at expected size.
 
 from __future__ import annotations
 
-import sys
-import urllib.request
-from pathlib import Path
-from corpus.config import RUNTIME
-from corpus.config import user_agent
 import argparse
+import sys
+from pathlib import Path
 
-DUMPS = RUNTIME / "bhl_dumps"
+from corpus.bhl import DUMPS
+from corpus.fetch import http
 S3 = "https://bhl-open-data.s3.amazonaws.com/data"
 
 FILES = [
@@ -28,17 +26,9 @@ FILES = [
     "partcreator.txt.gz",
 ]
 
-UA = user_agent()
-
-
 def expected_size(url: str) -> int | None:
-    try:
-        req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            cl = r.headers.get("Content-Length")
-            return int(cl) if cl else None
-    except Exception:
-        return None
+    cl = http.head(url).headers.get("Content-Length")
+    return int(cl) if cl and cl.isdigit() else None
 
 
 def download(url: str, dest: Path) -> None:
@@ -52,17 +42,11 @@ def download(url: str, dest: Path) -> None:
             return
         print(f"  ! {dest.name} exists but wrong size ({dest.stat().st_size} != {expected}); redownloading")
 
-    print(f"  → {dest.name} ({expected/1024/1024:.1f} MB)", flush=True)
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    tmp = dest.with_suffix(dest.suffix + ".part")
-    with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
-        while True:
-            chunk = r.read(1024 * 1024)
-            if not chunk:
-                break
-            f.write(chunk)
-    tmp.replace(dest)
-    print(f"    saved {dest.stat().st_size/1024/1024:.1f} MB")
+    print(f"  → {dest.name} ({(expected or 0)/1024/1024:.1f} MB)", flush=True)
+    n, err = http.download(url, dest)
+    if err:
+        raise SystemExit(f"    download failed: {err}")
+    print(f"    saved {n/1024/1024:.1f} MB")
 
 
 def main() -> int:

@@ -38,7 +38,6 @@ import re
 import string
 import subprocess
 import sys
-import unicodedata
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -48,10 +47,8 @@ from corpus.supplementary import SUPP_PDF_DIR, SUPP_MD_DIR, resolve_parent
 from corpus.config import ROOT as ARCHIVE, MD_DIR, PDF_DIR
 from corpus.manifest import load as manifest_load
 from corpus.manifest import failed_source
-
-def nfc(s: str) -> str:
-    return unicodedata.normalize("NFC", s)
-
+from corpus.bib import page_range
+from corpus.keys import nfc
 
 # Citation-key shape: {authorlastname}{4-digit-year} with an optional single
 # trailing lowercase letter that marks a same-author-same-year split
@@ -148,25 +145,10 @@ class Pending:
 
 
 def parse_cited_pages(pages_field: str | None) -> int | None:
-    """Best-effort extraction of an article-length estimate from "501-505" etc."""
-    if not pages_field or not isinstance(pages_field, str):
-        return None
-    s = pages_field.strip()
-    # "501-505" / "501–505" → 5
-    for sep in ("--", "–", "—", "-"):
-        if sep in s:
-            a, b = s.split(sep, 1)
-            try:
-                ai = int(a.strip())
-                bi = int(b.strip())
-                return max(0, bi - ai + 1) or None
-            except ValueError:
-                continue
-    try:
-        int(s)
-        return 1
-    except ValueError:
-        return None
+    """The cited article's length in pages ("501-505" -> 5), or None
+    (corpus.bib.page_range: a book's "250 pp." is not a range)."""
+    first, last = page_range(pages_field)
+    return last - first + 1 if first and last else None
 
 
 LEADING_INT = re.compile(r"^\s*(\d{1,4})(?=\s|$)(?!\s*[.)\]])")

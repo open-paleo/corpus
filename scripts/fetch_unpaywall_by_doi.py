@@ -25,22 +25,16 @@ Resume-safe: a key whose PDF is already on disk is skipped.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
-import unicodedata
-from datetime import datetime, timezone
 from pathlib import Path
 
+from corpus.config import PDF_DIR, require_env
 from corpus.fetch.doi_list import parse_list
-from fetch_unpaywall import (  # noqa: E402
-    API_DELAY,
-    LOG,
-    PDF_DIR,
-    download_pdf,
-    fetch_unpaywall,
-)
-from corpus.config import require_env
+from corpus.fetch.tier import now
+from corpus.fetch.unpaywall import API_DELAY, LOG, download_pdf, lookup
+from corpus.io import jsonl_append
+from corpus.keys import keys_in, nfc
 
 
 def pdf_candidates(payload: dict) -> list[tuple[str, str]]:
@@ -85,8 +79,8 @@ def main() -> int:
         pairs = [(k, d) for k, d in pairs if k in want]
 
     PDF_DIR.mkdir(parents=True, exist_ok=True)
-    on_disk = {unicodedata.normalize("NFC", p.stem) for p in PDF_DIR.glob("*.pdf")}
-    todo = [(k, d) for k, d in pairs if unicodedata.normalize("NFC", k) not in on_disk]
+    on_disk = set(keys_in(PDF_DIR, ".pdf"))
+    todo = [(k, d) for k, d in pairs if nfc(k) not in on_disk]
 
     email = require_env("UNPAYWALL_EMAIL")
 
@@ -99,20 +93,18 @@ def main() -> int:
             print(f"  {k:28s} {d}")
         return 0
 
-    LOG.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = LOG.open("a")
     got: list[tuple[str, int, str]] = []
     closed: list[str] = []
     failed: list[tuple[str, str]] = []
 
     for i, (key, doi) in enumerate(todo, 1):
-        now = datetime.now(timezone.utc).isoformat()
-        status, payload, err = fetch_unpaywall(doi, email)
+        ts = now()
+        status, payload, err = lookup(doi, email)
         if not payload:
             failed.append((key, err or f"http {status}"))
             print(f"[{i:>3}/{len(todo)}] {key:28s} --   api: {err or status}")
-            log_fh.write(json.dumps({"ts": now, "key": key, "doi": doi, "via": "by_doi",
-                                     "outcome": "api_error", "error": err}) + "\n")
+            jsonl_append(LOG, {"ts": ts, "key": key, "doi": doi, "via": "by_doi",
+                               "outcome": "api_error", "error": err})
             time.sleep(API_DELAY)
             continue
 
@@ -120,37 +112,32 @@ def main() -> int:
         if not payload.get("is_oa") and not cands:
             closed.append(key)
             print(f"[{i:>3}/{len(todo)}] {key:28s} --   closed access")
-            log_fh.write(json.dumps({"ts": now, "key": key, "doi": doi, "via": "by_doi",
-                                     "outcome": "closed"}) + "\n")
+            jsonl_append(LOG, {"ts": ts, "key": key, "doi": doi, "via": "by_doi",
+                               "outcome": "closed"})
             time.sleep(API_DELAY)
             continue
 
-        dest = PDF_DIR / f"{unicodedata.normalize('NFC', key)}.pdf"
-        tmp = dest.with_suffix(".pdf.tmp")
+        dest = PDF_DIR / f"{nfc(key)}.pdf"
         ok, why, nbytes, used = False, "no candidate urls", 0, ""
         for url, host in cands:
-            ok, why, nbytes = download_pdf(url, tmp)
+            ok, why, nbytes = download_pdf(url, dest)    # writes dest only for a PDF
             if ok:
                 used = url
                 break
         if ok:
-            tmp.replace(dest)
             got.append((key, nbytes, used))
             print(f"[{i:>3}/{len(todo)}] {key:28s} OK   {nbytes/1024:>6.0f} KB")
         else:
-            tmp.unlink(missing_ok=True)
             failed.append((key, why))
             print(f"[{i:>3}/{len(todo)}] {key:28s} --   {why[:60]}")
 
-        log_fh.write(json.dumps({"ts": now, "key": key, "doi": doi, "via": "by_doi",
-                                 "outcome": "pdf" if ok else "download_failed",
-                                 "url": used, "bytes": nbytes,
-                                 "candidates": [u for u, _ in cands],
-                                 "error": "" if ok else why}) + "\n")
-        log_fh.flush()
+        jsonl_append(LOG, {"ts": ts, "key": key, "doi": doi, "via": "by_doi",
+                           "outcome": "pdf" if ok else "download_failed",
+                           "url": used, "bytes": nbytes,
+                           "candidates": [u for u, _ in cands],
+                           "error": "" if ok else why})
         time.sleep(API_DELAY)
 
-    log_fh.close()
     print()
     print(f"acquired: {len(got)}   closed access: {len(closed)}   failed: {len(failed)}")
     if got:

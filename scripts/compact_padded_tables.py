@@ -20,6 +20,7 @@ import re
 import sys
 from corpus.config import MD_DIR
 from corpus.keys import key_arg
+from corpus.io import atomic_write_text
 
 SEPARATOR_CELL = re.compile(r"\s*:?-+:?\s*")
 
@@ -58,9 +59,7 @@ def main(argv=None) -> int:
         print(f"  {key}: {len(old):,} -> {len(new):,} bytes; largest block "
               f"{largest_block(old):,} -> {largest_block(new):,}")
         if args.apply and new != old:
-            tmp = path.with_suffix(".md.tmp")
-            tmp.write_text(new, encoding="utf-8")
-            tmp.replace(path)
+            atomic_write_text(path, new)
     if not args.apply:
         print("dry run; re-run with --apply to write")
     return rc

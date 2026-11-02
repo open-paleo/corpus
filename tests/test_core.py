@@ -176,3 +176,19 @@ def test_cost_uses_the_model_price():
     assert sonnet == PRICES[SONNET]["in"] + PRICES[SONNET]["out"]
     assert haiku < sonnet / 10
     assert cost("unknown-model", 1_000_000) == PRICES[SONNET]["in"]
+
+
+def test_atomic_path_replaces_on_success_and_cleans_up_on_error(tmp_path):
+    from corpus.io import atomic_path
+    target = tmp_path / "x.pdf"
+    target.write_bytes(b"old")
+    with atomic_path(target) as tmp:
+        tmp.write_bytes(b"new")
+    assert target.read_bytes() == b"new" and not tmp.exists()
+    try:
+        with atomic_path(target) as tmp:
+            tmp.write_bytes(b"half")
+            raise RuntimeError
+    except RuntimeError:
+        pass
+    assert target.read_bytes() == b"new" and not tmp.exists()

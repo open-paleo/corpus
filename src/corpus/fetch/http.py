@@ -73,3 +73,39 @@ def get(url: str, *, timeout: float = 30, max_bytes: int | None = DEFAULT_MAX_BY
         return Response(e.code, dict(e.headers or {}), body, f"http {e.code}: {e.reason}", url, cut)
     except Exception as e:
         return Response(0, {}, b"", f"{type(e).__name__}: {e}", url)
+
+
+def head(url: str, *, timeout: float = 30) -> Response:
+    """HEAD url (headers only, e.g. Content-Length). Never raises."""
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": user_agent()})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return Response(resp.status, dict(resp.headers), b"", "", resp.geturl())
+    except urllib.error.HTTPError as e:
+        return Response(e.code, dict(e.headers or {}), b"", f"http {e.code}: {e.reason}", url)
+    except Exception as e:
+        return Response(0, {}, b"", f"{type(e).__name__}: {e}", url)
+
+
+def download(url: str, dest, *, timeout: float = 120) -> tuple[int, str]:
+    """Stream url to dest (via dest.part, renamed on success) without holding
+    it in memory: (bytes written, error). For large files such as data dumps;
+    get() is for responses that fit in memory."""
+    from pathlib import Path
+    dest = Path(dest)
+    part = dest.with_suffix(dest.suffix + ".part")
+    req = urllib.request.Request(url, headers={"User-Agent": user_agent()})
+    try:
+        n = 0
+        with urllib.request.urlopen(req, timeout=timeout) as resp, open(part, "wb") as f:
+            while chunk := resp.read(CHUNK):
+                f.write(chunk)
+                n += len(chunk)
+        part.replace(dest)
+        return n, ""
+    except urllib.error.HTTPError as e:
+        return 0, f"http {e.code}: {e.reason}"
+    except Exception as e:
+        return 0, f"{type(e).__name__}: {e}"
+    finally:
+        part.unlink(missing_ok=True)

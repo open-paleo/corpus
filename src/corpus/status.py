@@ -19,13 +19,17 @@ import sys
 from collections import Counter
 
 from corpus.config import DB, MD_DIR, PDF_DIR
-from corpus.keys import key_from_path
+from corpus.keys import keys_in
 from corpus.manifest import acquisition, conversion, load as manifest_load
 
 
 def _on_disk(folder, suffix: str, nonempty: bool = False) -> set[str]:
-    return {key_from_path(p) for p in folder.glob(f"*{suffix}")
-            if not p.name.endswith(".original.md") and (not nonempty or p.stat().st_size)}
+    """corpus.keys.keys_in, without translation backups and, if nonempty,
+    without empty files (a converted paper has text)."""
+    keys = {k for k in keys_in(folder, suffix) if not k.endswith(".original")}
+    if nonempty:
+        keys = {k for k in keys if (folder / f"{k}{suffix}").stat().st_size}
+    return keys
 
 
 def _indexed() -> set[str] | None:

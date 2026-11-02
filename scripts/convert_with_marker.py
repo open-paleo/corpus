@@ -45,6 +45,7 @@ from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_from_path
 from corpus.keys import read_keys_file
 from corpus.keys import key_arg
+from corpus.io import jsonl_append
 
 # marker prints a tqdm bar like "Processing PDFs:  88%|███| 7/8 [..]" — parse
 # the N/M so the status line can show live progress.
@@ -126,7 +127,7 @@ def already_marker_converted_supp(manifest: dict, stem: str) -> bool:
 
 
 def post_process_outputs(candidates: list[str], output_dir: Path,
-                         manifest: dict, ocr_enabled: bool, log_fh,
+                         manifest: dict, ocr_enabled: bool,
                          supplementary: bool = False) -> tuple[int, int]:
     """Move marker outputs into our standard layout. Returns (ok, err).
 
@@ -144,7 +145,7 @@ def post_process_outputs(candidates: list[str], output_dir: Path,
         md_src = sub / f"{key}.md"
         if not md_src.exists():
             n_err += 1
-            log_fh.write(json.dumps({"ts": now, "key": key, "outcome": "no_output"}) + "\n")
+            jsonl_append(LOG, {"ts": now, "key": key, "outcome": "no_output"})
             print(f"  ! {key:30s} no marker output produced")
             continue
 
@@ -190,12 +191,11 @@ def post_process_outputs(candidates: list[str], output_dir: Path,
                 "notes": f"ocr={'on' if ocr_enabled else 'off'}",
             }
         n_ok += 1
-        log_fh.write(json.dumps({
+        jsonl_append(LOG, {
             "ts": now, "key": key, "outcome": "ok",
             "page_count": page_count,
             "md_size": md_dst.stat().st_size, "ocr": ocr_enabled,
-        }) + "\n")
-    log_fh.flush()
+        })
     return n_ok, n_err
 
 
@@ -334,12 +334,9 @@ def main() -> int:
         print(f"\nWARNING: marker exited with code {returncode} — partial outputs may exist")
 
     # Post-process all keys, even if marker partial-failed (some may have completed)
-    LOG.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = LOG.open("a")
-    n_ok, n_err = post_process_outputs(candidates, output_dir, manifest, args.ocr, log_fh,
+    n_ok, n_err = post_process_outputs(candidates, output_dir, manifest, args.ocr,
                                        supplementary=args.supplementary)
     manifest_commit(manifest)
-    log_fh.close()
 
     print()
     print(f"Done in {elapsed/60:.1f} min  →  ok={n_ok}  err={n_err}")

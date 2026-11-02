@@ -25,11 +25,9 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
-from corpus.config import RUNTIME
 import argparse
 
-DUMPS = RUNTIME / "bhl_dumps"
-DB = DUMPS / "bhl.db"
+from corpus.bhl import DB, DUMPS
 
 
 def _strip_nul(it):

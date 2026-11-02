@@ -412,7 +412,10 @@ def test_bhl_helpers():
         F.parse_seqs("231-212")
     assert F.accepted({"method": "doi_part"}) and not F.accepted({"method": "fuzzy"})
     assert F.accepted({"method": "item_unique", "reviewed": True})
-    assert F.parse_page_range("pp. 187–201") == (187, 201)
+    from corpus.bib import page_range
+    assert page_range("pp. 187–201") == (187, 201) == page_range("187-201, pl. 3")
+    assert page_range("p. 169") == (169, 169) and page_range("501-5") == (501, None)
+    assert page_range("250 pp.") == (None, None) == page_range(None)
 
 
 def test_every_script_parses_its_arguments():
@@ -428,3 +431,23 @@ def test_every_script_parses_its_arguments():
         if not ("argparse" in text or "from corpus.repair." in text):
             bare.append(p.name)
     assert not bare, f"scripts that would run on --help: {bare}"
+
+
+def test_tier_candidates_and_records(tmp_path, monkeypatch):
+    from corpus.fetch import tier
+    (tmp_path / "pdfs").mkdir()
+    (tmp_path / "pdfs" / "held.pdf").write_bytes(b"%PDF")
+    monkeypatch.setattr(tier, "PDF_DIR", tmp_path / "pdfs")
+    m = {"held": {"doi": "10.1/a"}, "nodoi": {}, "tried": {"doi": "10.1/b",
+         "acquisition": {"source": "unpaywall_no_oa"}}, "new": {"doi": "10.1/c"}}
+    assert tier.candidates(m) == ["tried", "new"]
+    assert tier.candidates(m, untried_only=True) == ["new"]
+    assert tier.candidates(m, {"new"}) == ["new"]
+    real = {"acquisition": {"source": "manual"}}
+    assert not tier.record_failure(real, "pmc_oa_no_oa") and real["acquisition"]["source"] == "manual"
+    tier.record_pdf(real, "pmc_oa", "k", "https://x", license="CC BY")
+    assert real["acquisition"]["previous_source"] == "manual" and real["acquisition"]["license"] == "CC BY"
+    failed = {"acquisition": {"source": "unpaywall_no_oa"}}
+    assert tier.record_failure(failed, "pmc_oa_not_found")
+    tier.record_pdf(failed, "pmc_oa", "k", "https://x")
+    assert "previous_source" not in failed["acquisition"]
