@@ -3,6 +3,11 @@ name: intake
 description: Discover new/updated PDFs in pdfs/, classify by era + scope, run marker/vision/translation/QC, index, and commit
 ---
 
+> **This checkout's own steps:** if `.claude/skills/intake/archive.md` exists, read it
+> first. It is a private repository's layer on this skill (extra steps, local
+> conventions) and is never part of the public repository; where it and this
+> file differ, it wins for this checkout.
+
 End-to-end intake for new or replaced PDFs sitting in `pdfs/`. Builds on the `Scenario A-bulk` workflow in CLAUDE.md, plus the era-classification heuristics, scope-limit pattern, and stub-triage rules from feedback memory.
 
 ## 1. Discover what changed
@@ -295,7 +300,7 @@ orphan-list churn at `/refresh-bib`.
 6. **Index** — `indexer.py` walks `markdown/supplementary/` automatically and
    indexes each under `{parent}-{name}`, inheriting the parent's
    title/year/genera with a `[suppl: {name}]` title prefix. Supplementary never
-   counts as missing (`corpus status`, `MISSING_PAPERS.md`).
+   counts as missing (`corpus status`).
 7. **Extract pages** — to scope-limit a large supplementary PDF first, use
    `/extract-pages {parent}-{name} "SPEC" --supplementary` (see that skill).
 8. **Commit** — stage `supplementary/{stem}.pdf` (LFS),
@@ -409,7 +414,7 @@ Then index, and check the counts:
 ./.runtime/venv/bin/corpus status        # held / converted / indexed / missing
 ```
 
-Indexer is mtime-based (incremental). `corpus status` should show the batch as converted and indexed, with nothing under "PDF, no markdown". If this checkout has `scripts/generate_missing_report.py` (a private archive's missing-papers report), also run it: it rewrites `MISSING_PAPERS.md` and round-trips any `(Closed access)` annotations into the manifest.
+Indexer is mtime-based (incremental). `corpus status` should show the batch as converted and indexed, with nothing under "PDF, no markdown".
 
 ## 10. Commit + push
 
@@ -417,11 +422,11 @@ Only where the content folders are tracked. A fresh clone of the public corpus r
 
 One commit covering the batch.
 
-Stage `manifest.json`, `MISSING_PAPERS.md` (if present), optionally `TRANSLATION_AUDIT.md`, plus all changed/new `markdown/*.md`, `pdfs/*.pdf` (LFS). `pdf_images/` and `.runtime/cache/vision/` are gitignored. Don't bundle unrelated working-tree changes — the user often has pending `MISSING_PAPERS.md` annotation edits or `markdown/*.md` cleanups that aren't part of *your* intake; surface them separately and ask before staging.
+Stage `manifest.json` plus all changed/new `markdown/*.md` and `pdfs/*.pdf` (LFS) of the batch, by explicit path. `pdf_images/` and `.runtime/` are gitignored. Don't bundle unrelated working-tree changes: surface them separately and ask before staging.
 
 If the batch included orphan keys (`in_bib=False`), call them out in the commit message body (e.g. "Stub-orphans pending bib propagation: osmolska1996, slowiak2024") and in the final user-facing summary. They're processed and indexed; the only follow-up is upstream bib entries.
 
-Push to `origin/main` of the private archive, never to the public repository.
+Push to the archive's own remote, never to the public repository.
 
 ## Quick decision tree
 

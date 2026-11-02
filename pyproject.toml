@@ -42,7 +42,6 @@ packages = ["src/corpus"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["scripts/repair_gts2020_*.py"]   # private, kept as written
 
 [tool.ruff.lint]
 # Pyflakes (undefined names, unused imports/variables) and syntax errors: what

@@ -3,6 +3,11 @@ name: extract-pages
 description: Extract specific pages from pdfs/{key}.pdf in place, replacing the file with just the requested pages — for scope-limiting whole-volume PDFs before /intake
 ---
 
+> **This checkout's own steps:** if `.claude/skills/extract-pages/archive.md` exists, read it
+> first. It is a private repository's layer on this skill (extra steps, local
+> conventions) and is never part of the public repository; where it and this
+> file differ, it wins for this checkout.
+
 Replace `pdfs/{key}.pdf` with a subset of its pages. Use when the user has a whole-volume PDF (a multi-hundred-page monograph or journal volume) but only cares about a few pages within it — e.g., a chapter, an appendix, the figure plates, or a single description block.
 
 This is the **destructive** companion to `/stitch`: where stitch builds a PDF up from images, extract-pages cuts an existing PDF down. The original is replaced in place; rely on git LFS history for rollback if the source was previously committed.
@@ -59,12 +64,12 @@ Output reports source page count + size, the resolved page list, output page cou
 ### Common variations
 
 ```bash
-# REQUIRED when the full source was never committed (check
+# REQUIRED when the full source is not kept anywhere else (a public clone
+# never commits PDFs; an archive may not have committed this one: check
 # `git log -- pdfs/{key}.pdf`): keep it, under a descriptive name, outside
-# the repository (this archive uses ~/Downloads/Books/). huene1932a (2026-06) was extracted without this and
-# the 367-page monograph was lost until it was found online again in October.
+# the repository. Without it a whole monograph cut down to one chapter is gone.
 ./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" \
-    --keep-source ~/Downloads/Books/"{Author} {year} - {short title}.pdf"
+    --keep-source "/path/outside/the/repo/{Author} {year} - {short title}.pdf"
 
 # Tune the size-limit warning threshold (no behavior change beyond the warning):
 ./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" \

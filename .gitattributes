@@ -4,4 +4,3 @@ supplementary/*.pdf filter=lfs diff=lfs merge=lfs -text
 supplementary/*.xlsx filter=lfs diff=lfs merge=lfs -text
 supplementary/*.docx filter=lfs diff=lfs merge=lfs -text
 supplementary/*.doc filter=lfs diff=lfs merge=lfs -text
-census/figures/*.png filter=lfs diff=lfs merge=lfs -text

@@ -3,6 +3,11 @@ name: extract-images
 description: Rip embedded raster images (figures/plates) out of pdfs/{key}.pdf into pdf_images/{key}/ on demand — the manual companion to intake, which does not extract images
 ---
 
+> **This checkout's own steps:** if `.claude/skills/extract-images/archive.md` exists, read it
+> first. It is a private repository's layer on this skill (extra steps, local
+> conventions) and is never part of the public repository; where it and this
+> file differ, it wins for this checkout.
+
 Extract the embedded raster images (figure plates, photos, line art) from
 `pdfs/{key}.pdf` into `pdf_images/{key}/`. Use when you actually need the
 figures from a specific paper: to view a plate, feed an image to another tool,

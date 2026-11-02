@@ -48,7 +48,6 @@ SOURCE_IMAGES_DIR = ROOT / "source_images"
 PDF_IMAGES_DIR = ROOT / "pdf_images"
 INDEX_DIR = ROOT / "index"
 DB = INDEX_DIR / "papers.db"
-MISSING_REPORT = ROOT / "MISSING_PAPERS.md"
 ENV_FILE = ROOT / ".env"
 
 RUNTIME = ROOT / ".runtime"

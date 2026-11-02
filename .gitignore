@@ -12,17 +12,13 @@ index/
 # scripts/extract_pdf_images.py.
 pdf_images/
 
-# BHL working caches: JP2 article images and pre-existing OCR text.
-# Regenerable from BHL S3 via scripts/bhl_fetch.py.
+# BHL page images (JP2) downloaded by scripts/bhl_fetch.py, stitched into
+# pdfs/; regenerable from BHL's S3 bucket.
 bhl_images/
-bhl_ocr/
 
 # User-provided source images for stitching into pdfs/ via
 # scripts/stitch_source_images.py. One subdir per citation key.
 source_images/
-
-# Empty/cruft.
-images/
 
 # macOS + atomic-write artifacts.
 .DS_Store
@@ -45,9 +41,8 @@ __pycache__/
 manifest.json.lock
 
 # Reports the QC and audit scripts write at the root (regenerable). A
-# private archive that tracks some of them is unaffected, as below.
+# private archive that tracks one is unaffected, as below.
 TRANSLATION_AUDIT.md
-MISSING_PAPERS.md
 
 # This checkout's own record of what it holds: never part of the public
 # repository. (A private archive that tracks it is unaffected: ignore rules
