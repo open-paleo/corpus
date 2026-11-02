@@ -129,6 +129,13 @@ A new corpus has too few clean files for the word counts above: on a two-paper c
 - In the Th path, count lowercase tokens only: the fault is capital-only, and 55 broken "Tis" outvoted 43 "this".
 - An ASCII fragment beside a non-ASCII letter or a spacing accent is judged as the whole word, in every language, in both modes: "geográfca"→"geográfica", but never Lefèvre→"Leftèvre", which corpus mode wrote 137 times in fe77e507 (repaired 2026-11-01, with aérifères, Santa Sofıa and modifïed), or "Pa´lfy"→"Pa´lffy".
 
+### Ligature repair: read the dry run for abbreviations, names and other languages (2026-11-01)
+The 2026-11-01 archive pass (corpus mode, 1,212 repairs in 67 papers, two passes: the lexicon changes as papers become clean) kept 19 proposed forms as written after reading them in context. They show what the dry run must be read for:
+- figure-legend abbreviations: `fco` fibular condyle, `frm` foramen, `sof` suborbital flange, `afn`, `fna`, `Classif.`;
+- place names and other languages: the Moroccan `Rif` (not Rift), German `Fach`, `Feld` ("Im Neuenheimer Feld"), the facies code `Fle`, Spanish split by a space or OCR (`ofre ció`, `mam- ´fero`, `í feros`);
+- authors and quoted misspellings: `Foresi et al.`, `*Phytosaurus kapfi* [*sic*]`;
+- garbled text where no repair is right: `3-5 flm` (µm), `昀椀fth`, `sh<br>rif<br>he`.
+
 ### Nature Adv* fonts read fi/fl/en dash as ®/¯/±
 Late-1990s/2000s Nature PDFs (e.g. `AdvPS81DB`) have an empty /Differences encoding, so `signi®cant`, `¯ow` and `north±south` come straight from the text layer. `scripts/restore_symbol_glyphs.py` can't fix this; `scripts/fix_ligature_substitutions.py` fixed 8 keys (curryrogers2001a, ji2001a, martill2000a, sampson2001a, xu1999a, xu2000c, xu2002a, xu2002b). It requires at least three ligature glyphs next to letters, because a spacing macron looks identical (`galton2006a` Ky¯ory¯ugaku, `whitlock2020a`, `peyredefabrègues2016a`). Don't lower that threshold without adding a dictionary gate. A real ± has a space on both sides. Files with mostly free-standing ®/¯ (`reig1963a`, `taquet1977a`, `powell1979a`) have a different defect.
 

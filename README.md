@@ -43,11 +43,11 @@ The bibliography comes from `CORPUS_BIB_SOURCE` in `.env`:
 |---|---|
 | `auto` (default) | `../data` if it is there, else `bib/references.bib` if present, else the download |
 | `sibling` | `../data/dist/references.bib` (or `$OPEN_PALEO_DATA`) |
-| `bundled` | `bib/references.bib` in this repository |
+| `bundled` | `bib/references.bib` in this repository, kept current by the `update-bib` workflow (daily) |
 | `remote` | the data repository's `dist/references.bib` on GitHub, cached in `.runtime/cache/bib/` |
 
-So the data repository clone is optional: without it, the bib and the
-genus/clade labels are downloaded.
+So the data repository clone is optional: without it, the bib comes from
+`bib/references.bib` and the genus/clade labels are downloaded.
 
 ## Building the corpus
 

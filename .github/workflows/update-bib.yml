@@ -1,0 +1,112 @@
+name: update-bib
+
+# Keeps bib/references.bib (CORPUS_BIB_SOURCE=bundled, and what "auto" uses
+# when no data repository sits beside the checkout) in step with the data
+# repository's dist/references.bib.
+#
+# main takes changes only by pull request with the required checks, and no
+# branch but main may be created except bot/bib-update. So the job pushes
+# that branch, opens (or updates) a pull request and turns on auto-merge:
+# the change lands once test, no-content and signed-off pass. It pushes with
+# CORPUS_BOT_TOKEN, a fine-grained token limited to this repository
+# (Contents and Pull requests: read and write), because pull requests opened
+# with the built-in GITHUB_TOKEN do not trigger the required checks. The
+# rulesets still apply to that token: it cannot push to main.
+#
+# Triggers: daily, by hand (Actions > update-bib > Run workflow), or from the
+# data repository after a build:
+#   gh api repos/open-paleo/corpus/dispatches -f event_type=bib-updated
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [bib-updated]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-bib
+  cancel-in-progress: false
+
+env:
+  BIB_URL: https://raw.githubusercontent.com/open-paleo/data/main/dist/references.bib
+  BRANCH: bot/bib-update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the token is configured
+        env:
+          TOKEN: ${{ secrets.CORPUS_BOT_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Secret CORPUS_BOT_TOKEN is not set (see the comment at the top of this workflow)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          lfs: false
+          token: ${{ secrets.CORPUS_BOT_TOKEN }}
+
+      - name: Fetch the data repository's bib
+        id: fetch
+        run: |
+          set -euo pipefail
+          mkdir -p bib
+          curl -fsSL --retry 3 -o bib/references.bib.new "$BIB_URL"
+          n=$(grep -c '^@' bib/references.bib.new || true)
+          if [ "$n" -lt 1000 ]; then
+            echo "::error::Downloaded bib has only $n entries; refusing to replace it."
+            exit 1
+          fi
+          mv bib/references.bib.new bib/references.bib
+          old=$(git show HEAD:bib/references.bib 2>/dev/null | grep -c '^@' || true)
+          echo "entries=$n" >> "$GITHUB_OUTPUT"
+          echo "previous=${old:-0}" >> "$GITHUB_OUTPUT"
+          if git diff --quiet -- bib/references.bib && git ls-files --error-unmatch bib/references.bib >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "bib unchanged ($n entries)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the pull request
+        if: steps.fetch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CORPUS_BOT_TOKEN }}
+          ENTRIES: ${{ steps.fetch.outputs.entries }}
+          PREVIOUS: ${{ steps.fetch.outputs.previous }}
+        run: |
+          set -euo pipefail
+          source_sha=$(gh api repos/open-paleo/data/commits/main --jq .sha | cut -c1-12)
+          name="open-paleo-corpus bib bot"
+          email="41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "$name"
+          git config user.email "$email"
+          git switch -c "$BRANCH"
+          git add bib/references.bib
+          git commit -q -F - <<MSG
+          Update bib/references.bib from open-paleo/data@${source_sha}
+
+          ${PREVIOUS} -> ${ENTRIES} entries.
+
+          Signed-off-by: ${name} <${email}>
+          MSG
+          git push --force origin "$BRANCH"
+          title="Update bib/references.bib from open-paleo/data"
+          body="Automated by the update-bib workflow: dist/references.bib at open-paleo/data@${source_sha}, ${PREVIOUS} -> ${ENTRIES} entries. Merges itself once the required checks pass."
+          url=$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url')
+          if [ -z "$url" ]; then
+            url=$(gh pr create --base main --head "$BRANCH" --title "$title" --body "$body")
+          else
+            gh pr edit "$url" --body "$body"
+          fi
+          # A merge commit, not a squash: the bot's commit keeps its sign-off.
+          gh pr merge "$url" --auto --merge
+          echo "$url"
