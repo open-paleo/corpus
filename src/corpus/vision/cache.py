@@ -3,8 +3,8 @@
 A cache entry records the prompt id and model that wrote it; it serves a
 request only for the same prompt and a cache-compatible model
 (corpus.models.cache_model_ok). Writes are atomic. An entry that cannot be
-parsed (a write cut off by Ctrl-C, before writes were atomic) is a miss and is
-removed, so it no longer fails its paper on every run.
+parsed (a write cut off part-way) is a miss and is removed, so it does not
+fail its paper on every run.
 """
 from __future__ import annotations
 

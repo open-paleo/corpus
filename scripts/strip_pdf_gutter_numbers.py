@@ -14,7 +14,7 @@ and both failed on real files:
 
   * local ascending runs — indistinguishable from an author-affiliation block
     ("5 National Museums…, 6 2073 Market Street…"), which must survive;
-  * longest bounded-step increasing subsequence — on zanno2025a it locks onto
+  * longest bounded-step increasing subsequence — on one paper it locks onto
     the numbered REFERENCE LIST (1..102, dense and contiguous) instead of the
     gutter (fragmented by figure pages). Stripping that would destroy the
     citation numbers.
@@ -37,14 +37,14 @@ Refuses unless the PDF really is a line-numbered manuscript:
   * >=30% of pages carrying >=8 leading-number lines; AND
   * >=40% of the PDF's gutter sequence actually matched in the markdown.
 
-That last check is what stops a partial or mis-aligned match from firing. It is
-why zanno2025a refuses: its text layer puts superscript citation markers at the
-line start ("1 47 and a"), so the gutter is not reliably first and only a
-handful match. Those files need vision re-OCR, not surgery.
+That last check is what stops a partial or mis-aligned match from firing. A text
+layer that puts superscript citation markers at the line start ("1 47 and a")
+does not reliably put the gutter first, so only a handful match and the script
+refuses. Those files need vision re-OCR, not surgery.
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/strip_pdf_gutter_numbers.py --key xing2020a
+    ./.runtime/venv/bin/python scripts/strip_pdf_gutter_numbers.py --key KEY
     ./.runtime/venv/bin/python scripts/strip_pdf_gutter_numbers.py --key K --apply
 """
 
@@ -130,9 +130,8 @@ def match_gutter(text: str, seq: list[int], window: int = 60):
 
 
 # A number standing in front of one of these is being used as a quantity, not a
-# gutter mark. Caught real damage in díezdíaz2018a: "a body size up to 12
-# meters" and "including 29 sauropod taxa" both matched the expected gutter
-# value and were being deleted.
+# gutter mark: "a body size up to 12 meters" and "including 29 sauropod taxa"
+# can match the expected gutter value and would otherwise be deleted.
 UNIT_AFTER = re.compile(
     r"^\s*(?:m|mm|cm|km|kg|g|mA|Ma|myr|%|°|meters?|metres?|taxa|specimens?|"
     r"characters?|elements?|individuals?|vertebrae|teeth|genera|species)\b", re.I)
@@ -163,10 +162,9 @@ def veto_quantities(text: str, hits):
 def cut(text: str, hits) -> str:
     """Excise the matched tokens and nothing else.
 
-    Repairs are strictly LOCAL to each cut site. An earlier version normalised
-    whitespace and blank lines across the whole file, which reported 92 KB
-    removed from rozadilla2020a for 824 numbers — the digits are ~4 KB of that
-    and the rest was collateral reformatting of tables and spacing.
+    Repairs are strictly LOCAL to each cut site. Normalising whitespace and
+    blank lines across the whole file would also reformat tables and spacing,
+    changing far more text than the removed digits.
     """
     out, prev = [], 0
     for start, end, _ in hits:

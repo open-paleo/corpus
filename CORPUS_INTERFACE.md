@@ -14,7 +14,8 @@ resolves the data repository as `$OPEN_PALEO_DATA`, else `../data`.
 ## Files
 
 All paths are relative to the corpus root. Citation keys are the data
-repository's bib keys (`mantell1825a`, `prieto-márquez2010c`), in Unicode NFC.
+repository's bib keys (author surname, year and an optional letter suffix;
+they can contain hyphens and non-ASCII letters), in Unicode NFC.
 
 | Path | Contents |
 |---|---|

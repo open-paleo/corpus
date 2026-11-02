@@ -9,13 +9,13 @@ down to a page range; this one widens the range afterwards, when it turns out
 the article or chapter ran further than first thought — without re-cutting from
 scratch and losing the existing extraction.
 
-Pages are appended in spec order, losslessly (`insert_pdf` preserves the
+Pages are appended in spec order, losslessly (`import_pages` copies the
 original page streams). The manifest's `acquisition.pdf_extract_pages` is
 rewritten to the union of the old and new specs so the record stays truthful
 about what the on-disk PDF contains.
 
 Usage:
-  ./.runtime/venv/bin/python scripts/append_pdf_pages.py paul1988a \\
+  ./.runtime/venv/bin/python scripts/append_pdf_pages.py KEY \\
       --source "/path/to/Predatory dinosaurs of the world.pdf" \\
       --pages "320-323"
 

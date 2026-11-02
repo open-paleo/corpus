@@ -20,7 +20,8 @@ was put there by this machine's user and stays here.
   `update-bib` workflow's pull requests), `remote` (downloaded from the data
   repository on GitHub), or `auto` (the first of those that exists, else
   remote).
-- **Credentials:** `.env` holds `UNPAYWALL_EMAIL` and `ANTHROPIC_API_KEY`.
+- **Credentials:** `.env` holds `UNPAYWALL_EMAIL`, `ANTHROPIC_API_KEY` and,
+  for the BHL tier, the optional `BHL_API_KEY`.
   Mode 0600. Never commit, never log, never print it.
 - **Never commit content.** `manifest.json` is gitignored, and the content
   folders each hold a `.gitignore` of `*`. Don't remove those files, don't `git add -f` anything under them, and
@@ -30,7 +31,7 @@ was put there by this machine's user and stays here.
 
 ## Project notes (`docs/notes/`)
 
-Lessons and settled answers from past sessions. Start with
+Lessons and settled answers about the pipeline. Start with
 `docs/notes/README.md`, which says which file to read for which task. Always
 read `working-agreements.md`. Before converting or repairing a paper, read
 `conversion.md`. Before changing code, read `code.md`. When a session learns
@@ -102,8 +103,9 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus pdf images` | `extract_pdf_images.py` | Embedded figures of `--key K` → `pdf_images/K/` (on demand, gitignored; `/extract-images`) |
 | `corpus convert marker` | `convert_with_marker.py` | PDF → Markdown from the text layer (`--workers 1`) |
 | `corpus convert vision` | `convert_with_vision.py` | PDF → Markdown via Claude vision OCR (per-page cache) |
-| `corpus convert recover` | `recover_blocked_pages.py` | Re-OCR pages the content filter blocked, by halves |
-| | `dedupe_recovered_pages.py` | Remove boundary duplication left by recovery |
+| `corpus convert recover` | `reocr_nooverlap.py` | Re-OCR pages the content filter blocked, cut only on whitespace (candidate first, `--apply` to write) |
+| `corpus convert spread` | `ocr_spread_pdf.py` | Vision OCR of scans whose pages are two-page book spreads, split at the gutter |
+| `corpus convert poster` | `tile_ocr_poster.py` | Vision OCR of a single-canvas conference poster, in tiles |
 | `corpus convert translate` | `translate_markdown.py` | Translate non-English markdown (keeps `.original.md`) |
 | | `correct_cjk_from_textlayer.py` | Correct vision-OCR'd Chinese/Japanese from a born-digital text layer |
 | `corpus repair all` | `corpus.repair` | All text-layer repairs in one pass (dry run unless `--apply`) |
@@ -130,20 +132,20 @@ The skill encodes the heuristics; the steps below are what it runs.
 
 ```bash
 # 1. Save the file under its exact citation key (from `corpus status --missing`).
-cp ~/Downloads/paper.pdf pdfs/cope1872a.pdf
+cp ~/Downloads/paper.pdf pdfs/KEY.pdf
 # 2. Record it (creates a stub entry, in_bib=False, if the key is not in the bib yet).
-./.runtime/venv/bin/corpus intake acquire cope1872a
+./.runtime/venv/bin/corpus intake acquire KEY
 #    A scan with no usable text layer: skip marker.
-./.runtime/venv/bin/corpus intake acquire cope1872a --vision-ocr "1800s scan; skip marker"
+./.runtime/venv/bin/corpus intake acquire KEY --vision-ocr "1800s scan; skip marker"
 # 3. Convert.
-./.runtime/venv/bin/corpus convert marker --workers 1 --key cope1872a
-./.runtime/venv/bin/corpus convert vision --key cope1872a    # for flagged keys
+./.runtime/venv/bin/corpus convert marker --workers 1 --key KEY
+./.runtime/venv/bin/corpus convert vision --key KEY    # for flagged keys
 # 4. QC, repairs, cleanup.
-./.runtime/venv/bin/corpus intake qc cope1872a
+./.runtime/venv/bin/corpus intake qc KEY
 ./.runtime/venv/bin/corpus qc scan
-./.runtime/venv/bin/corpus repair all --key cope1872a            # read, then --apply
-./.runtime/venv/bin/corpus clean ligatures --key cope1872a       # read, then --apply
-./.runtime/venv/bin/corpus clean frontmatter --key cope1872a     # read, then --apply
+./.runtime/venv/bin/corpus repair all --key KEY            # read, then --apply
+./.runtime/venv/bin/corpus clean ligatures --key KEY       # read, then --apply
+./.runtime/venv/bin/corpus clean frontmatter --key KEY     # read, then --apply
 # 5. Index and check.
 ./.runtime/venv/bin/corpus index
 ./.runtime/venv/bin/corpus status
@@ -179,7 +181,7 @@ print(''.join(d[i].get_textpage().get_text_bounded() for i in range(len(d)))[:60
 | Whole pages as `\| 24 \| text \|` tables | accepted-manuscript line numbers | `untable_gutter_manuscript.py`, or vision with gutter context |
 | Journal line repeating once per page | running head | `strip_running_heads.py` (review the list) |
 | Body starts mid-article | marker dropped image-only pages | vision re-OCR |
-| `[VISION OCR FAILED FOR PAGE N: ...]` | content filter blocked a page | `recover_blocked_pages.py`, then check for duplicated text |
+| `[VISION OCR FAILED FOR PAGE N: ...]` | content filter blocked a page | `corpus convert recover --key K --page N`; read the measurements, never print the page; then `--apply` |
 
 **Always verify vision output against the rendered page** for taxon names,
 specimen numbers and systematic headings. On degraded scans the model can
@@ -194,7 +196,7 @@ automated check.
 ./.runtime/venv/bin/corpus search 'NEAR("tail club" ankylosaur, 10)'   # function syntax
 ./.runtime/venv/bin/corpus search --genera Pteropelyx
 ./.runtime/venv/bin/corpus search 'titanosaur' --year '202*'
-./.runtime/venv/bin/corpus search --key cope1889a --full-body
+./.runtime/venv/bin/corpus search --key KEY --full-body
 ```
 
 The tokenizer is `porter unicode61 remove_diacritics 2` ("México" matches

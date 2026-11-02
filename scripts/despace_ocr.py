@@ -7,7 +7,7 @@ layer, which sprays spurious mid-word spaces ("numerou s", "th e", "orname nta
 tion", "correspond s in length"). This pass rejoins them WITHOUT re-OCR, using
 the system word list (/usr/share/dict/words) as an oracle. It is deliberately
 conservative: every merge produces a dictionary word or a valid inflection, and
-a battery of guards (validated on maryańska1977a) suppresses the false-merge
+a battery of guards suppresses the false-merge
 classes. Pre-existing letter-misreads ("nolllen"->nomen, "skulIs"->skulls) and
 genuinely-ambiguous both-real-word splits ("for amen"->foramen) are left alone —
 this only removes spaces, it never rewrites letters.
@@ -24,8 +24,8 @@ other"), and a deny-list of odd web2 short words that only ever arise as wrong
 cross-line-break orphan joins.
 
 Usage:
-    python scripts/despace_ocr.py --key maryańska1977a          # dry-run
-    python scripts/despace_ocr.py --key maryańska1977a --apply  # writes .bak + file
+    python scripts/despace_ocr.py --key KEY          # dry-run
+    python scripts/despace_ocr.py --key KEY --apply  # writes .bak + file
     python scripts/despace_ocr.py --path some/file.md --top     # ad-hoc, show merges
 
 Not part of intake. Run on demand for a specific rough-marker scan, then

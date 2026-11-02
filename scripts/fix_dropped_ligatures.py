@@ -18,7 +18,7 @@ are out of scope; those need vision re-OCR.
 WHY NOT A PLAIN DICTIONARY GATE: /usr/share/dict/words (web2) is a 1913 lemma
 list. It lacks "feet", "favour", "floodplain", "Garfield" and every proper noun,
 so "is the token already a real word?" cannot be answered from it — a naive gate
-rewrites feet->fleet (3462x), Fuentes->Fluentes, afer->affier. Instead the
+rewrites feet->fleet, Fuentes->Fluentes, afer->affier. Instead the
 corpus supplies the oracle. Files carrying none of the unambiguous break
 signatures (TELLS) are "clean"; their vocabulary is by construction legitimate
 spelling, and the count of distinct clean files a token appears in (its document
@@ -26,9 +26,8 @@ frequency) decides both questions:
 
   - PROTECT: a token clean files also use is a real spelling in SOME language,
     and is overruled only when the corpus prefers the repaired form by >=10x.
-    This is what saves feet (431 clean files vs fleet), favour, Fuentes, Kiefer
-    and Spanish "diferentes", while still fixing German-looking "feld" (11) in
-    favour of "field" (1263).
+    This is what saves feet, favour, Fuentes, Kiefer and Spanish "diferentes",
+    while still fixing German-looking "feld" in favour of "field".
   - ACCEPT:  a candidate repair must be a web2 headword outright, or appear in
     >=2 clean files. The corpus half admits the inflections, compounds and
     proper nouns web2 omits — identified, floodplain, fieldwork, Garfield.
@@ -44,8 +43,8 @@ corpus signature (file count + total bytes), and rebuilt automatically when the
 markdown corpus changes. --rebuild-lexicon forces it.
 
 A SMALL CORPUS CANNOT BE ITS OWN ORACLE. With a few dozen papers the clean
-lexicon attests almost nothing, so most repairs are never accepted (a new
-two-paper corpus fixed 47 of 141 breaks, and none of 75 "Te"). Below
+lexicon attests almost nothing, so most repairs are never accepted (a
+two-paper corpus repairs about a third of its breaks and no "Te"). Below
 MIN_CLEAN_FILES clean files the script therefore takes word frequencies from
 the `wordfreq` package instead (WordFreqLexicon: Zipf frequencies in the
 paper's own language and English, plus the domain vocabulary of the data
@@ -56,8 +55,8 @@ reasonably common reading, a rare one only to a reading 10x more frequent.
 system word list, so it also works where /usr/share/dict/words is missing.
 
 Usage:
-    python scripts/fix_dropped_ligatures.py --key beveridge2022z          # dry-run
-    python scripts/fix_dropped_ligatures.py --key beveridge2022z --apply  # .bak + write
+    python scripts/fix_dropped_ligatures.py --key KEY          # dry-run
+    python scripts/fix_dropped_ligatures.py --key KEY --apply  # .bak + write
     python scripts/fix_dropped_ligatures.py --path some/file.md --top     # ad-hoc
     python scripts/fix_dropped_ligatures.py --scan                        # census
     python scripts/fix_dropped_ligatures.py --audit                       # corpus dry-run
@@ -86,15 +85,15 @@ WORDS = _WORDS   # read on first use
 #   ff -> f (lost "f"), fi -> f (lost "i"), fl -> f (lost "l"),
 #   ffi -> f (lost "fi"), ffl -> f (lost "fl"), ft -> f (lost "t")
 # "ft" is not one of the four Latin-1 ligature codepoints, but plenty of text
-# faces ligate it and the same broken ToUnicode map eats it: "shaf" for "shaft"
-# (343x in this corpus), "sofware", "Naturwissenschafen", "Zeitschrif". It also
+# faces ligate it and the same broken ToUnicode map eats it: "shaf" for "shaft",
+# "sofware", "Naturwissenschafen", "Zeitschrif". It also
 # disambiguates "draf", which without it repairs to the archaic "draff" instead
 # of the intended "draft" — with "t" present both readings compete and the token
 # is correctly left alone.
 TAILS = ("f", "i", "l", "fi", "fl", "t")
 
-MIN_LEN = 3          # 3 is where the frequent short breaks live — "lef" (left,
-                     # 600x), "fve", "fne", "fsh", "tuf"; 2-char tokens are
+MIN_LEN = 3          # 3 is where the frequent short breaks live — "lef" (left),
+                     # "fve", "fne", "fsh", "tuf"; 2-char tokens are
                      # specimen-code and abbreviation noise
 DF_ACCEPT = 2        # clean-file document frequency that vouches for a repair
 DF_RATIO = 10        # how decisively the corpus must prefer the repaired spelling
@@ -168,8 +167,8 @@ WORD_RE = re.compile(r"[A-Za-z]{2,}")
 # Unambiguous break signatures — no entry may be a real word in ANY language the
 # corpus contains. A file matching one is "broken" and contributes nothing to
 # the clean lexicon. Note the omission of "diferent*": it is correct Spanish and
-# Portuguese, and listing it condemned 30+ Romance-language papers as broken,
-# which both poisoned the lexicon and let the repair rewrite their prose.
+# Portuguese, and listing it would condemn Romance-language papers as broken,
+# which both poisons the lexicon and lets the repair rewrite their prose.
 TELLS = re.compile(
     r"\b(signifcant\w*|identifed|specifc\w*|defned|confrm\w*|classifcation"
     r"|scientifc|frst|refned|difcult\w*|coefcient\w*|sufcient\w*"
@@ -326,7 +325,7 @@ INTERIOR_CAP = re.compile(r"[A-Z]")
 # The same broken font maps also eat the capital Th ligature, decoding it to a
 # bare "T": "Te Bauru Basin", "Tis assignment", "Tese elements", "Teropoda".
 # It is a CAPITAL-pair glyph, so lowercase "the"/"this" come through intact —
-# langer2019a has 1962 correct lowercase "the" alongside 315 broken "Te".
+# a broken file can have thousands of correct "the" alongside hundreds of "Te".
 # Restricting to capitalised tokens is therefore not just caution, it matches
 # the defect: the two lowercase candidate classes in the affected files are both
 # false alarms — "tem" is Portuguese ("tem por substrato"), and "lengt" is
@@ -342,9 +341,9 @@ INTERIOR_CAP = re.compile(r"[A-Z]")
 # where the correct form is essentially absent from that same file (broken files
 # run "Te" 49-255 against "The" 0-8).
 # Same rule as TELLS: no entry may be a real word in another language. "Tese"
-# is Portuguese for thesis, and admitting it as a gate signal pulled in the
-# all-Portuguese fernandes2000a, where the repair then rewrote eleven
-# sentence-initial "Tem" ("Tem por substrato basaltos...") into "Them".
+# is Portuguese for thesis, and admitting it as a gate signal would pull in
+# all-Portuguese papers, where the repair would then rewrite sentence-initial
+# "Tem" ("Tem por substrato basaltos...") into "Them".
 TH_TELLS = re.compile(
     r"\b(Tis|Tose|Tey|Teir|Terefore|Teropod\w*|Tyreophor\w*|Troughout"
     r"|Tird|Tickness)\b")
@@ -355,7 +354,7 @@ TH_TOKEN = re.compile(r"T[a-z]{1,14}")
 
 # "Tese"/"Tesis" are also Portuguese/Spanish for thesis and turn up in reference
 # lists inside otherwise-broken English papers. The repair is worth far more
-# than the collision ("Tese" -> "These" is 210 hits), so instead of denying the
+# than the collision, so instead of denying the
 # words outright, skip them where the following word marks a Romance citation.
 ROMANCE_NEXT = re.compile(
     r"^(de|del|da|do|la|el|en|doctoral|doutorado|mestrado|in[ée]dita?o?"
@@ -369,7 +368,7 @@ SENTENCE_END = re.compile(r"[.!?:;)\]]\s*$|\n")
 SENTENCE_START = re.compile(r"[.!?:;\n][\s*_#>|-]*$")
 
 # Where a broken form collides with a real word, the following word can still
-# settle it. "Tree" is the only one that matters in this corpus: "Tree dorsal
+# settle it. "Tree" is the case that matters: "Tree dorsal
 # vertebrae" is Three, but phylogenetics writes "Tree topology", "Tree Fusing",
 # "Tree Bisection-Reconnection" and "Tree Drift" (TNT search algorithms) with a
 # genuine capital Tree.
@@ -447,8 +446,7 @@ def repair_token(tok: str, df: dict[str, int], sentence_start: bool = False):
                 # spelling in SOME language. Only overrule that when the corpus
                 # prefers the repair by a wide margin — this is what keeps
                 # "feet"/"favour"/"Fuentes"/Spanish "diferentes" intact while
-                # still fixing "feld" (11 clean files, German "Feld") in favour
-                # of "field" (1263).
+                # still fixing "feld" (German "Feld") in favour of "field".
                 ok = d_cand >= DF_RATIO * d_orig
             if ok:
                 results.add(cand)
@@ -565,8 +563,8 @@ def fix(text: str, df, log: dict | None = None):
     for k, v in doc.items():
         # wordfreq mode counts lowercase tokens only, as repair_th_token's
         # comment intends: the Th fault is capital-only, so lowercase usage is
-        # the uncontaminated evidence (55 broken "Tis" must not outvote 43
-        # "this"). Corpus mode keeps its original all-case count.
+        # the uncontaminated evidence (broken "Tis" must not outvote "this").
+        # Corpus mode counts all cases.
         if not wf_mode or k[:1].islower():
             doc_low[k.lower()] += v
     n_fix = 0
@@ -582,8 +580,7 @@ def fix(text: str, df, log: dict | None = None):
             # "Lef|èvre"): judge the whole word, so "geográfca" becomes
             # "geográfica" and "Lefèvre" never "Leftèvre". The corpus lexicon
             # holds only ASCII fragments and cannot judge a whole word, so both
-            # modes use wordfreq here (corpus mode wrote "Leftèvre" 137 times
-            # before this, fe77e507).
+            # modes use wordfreq here.
             if frag_lex is None:
                 frag_lex = df if wf_mode else _shared_wordfreq().for_text(text)
             rep = _repair_fragment(toks, i, frag_lex)

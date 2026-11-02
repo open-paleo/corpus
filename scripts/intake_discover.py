@@ -53,8 +53,8 @@ from corpus.keys import nfc
 
 # Citation-key shape: {authorlastname}{4-digit-year} with an optional single
 # trailing lowercase letter that marks a same-author-same-year split
-# (gilmore1945a / gilmore1945b). Anchored on the year so multi-token stems
-# like "vonhuene1926" still parse.
+# (smith1945a / smith1945b). Anchored on the year so multi-token stems
+# like "vonsmith1926" still parse.
 _KEY_RE = re.compile(r"^(?P<stem>.+?\d{4})(?P<suf>[a-z])?$")
 
 
@@ -101,7 +101,7 @@ def git_status_pdfs() -> tuple[set[str], set[str]]:
     """Return (untracked_keys, modified_keys) for pdfs/*.pdf via git status."""
     try:
         # core.quotePath=false: keep non-ASCII filenames as raw UTF-8 in the
-        # output. Default (true) octal-escapes them ('dieudonn\303\2512026.pdf'),
+        # output. Default (true) octal-escapes them ('caf\303\2512026.pdf'),
         # which then doesn't match the NFC-normalized disk key.
         out = subprocess.check_output(
             ["git", "-c", "core.quotePath=false",
@@ -159,8 +159,8 @@ def has_line_numbers(pdf, sample: int = 6) -> bool:
     """True when the text layer shows a manuscript line-number gutter: on at
     least two sampled pages, ten or more lines start with an integer that is
     one more than the previous such integer. Numbered lists ("1.", "1)") and
-    reference lists ("[1]") do not match. funston2020a-supplemental and
-    longrich2024c lost table cells and whole lines to marker this way.
+    reference lists ("[1]") do not match. On such pages marker loses table
+    cells and whole lines.
 
     `pdf` is a path or an already open pypdfium2 document (so a caller that
     has opened it for the page count does not open it twice)."""
@@ -401,9 +401,8 @@ def print_supplementary(pending: list[dict]) -> None:
 
 def print_odd_extensions() -> None:
     """Every script expects pdfs/{key}.pdf; a ".PDF" or ".Pdf" drop is invisible
-    to the "*.pdf" glob in gather_pending (two files dropped as Z6002006.PDF and
-    ecob,+JIGE0909220141A.PDF were missed this way). Runs even when nothing else
-    is pending."""
+    to the "*.pdf" glob in gather_pending. Runs even when nothing else is
+    pending."""
     odd_ext = sorted(p.name for p in PDF_DIR.iterdir()
                      if p.is_file() and p.suffix.lower() == ".pdf" and p.suffix != ".pdf")
     if odd_ext:

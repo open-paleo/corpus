@@ -1,7 +1,8 @@
 """Vision OCR of one page image: the prompts, the request, the cached result.
 
-Shared by convert_with_vision.py, ocr_spread_pdf.py and repair_truncated_pages.py
-(which used to import these from convert_with_vision.py itself).
+Shared by convert_with_vision.py, ocr_spread_pdf.py, tile_ocr_poster.py and
+reocr_nooverlap.py (ocr_fragment: a piece of a page, for content-filter
+recovery).
 """
 from __future__ import annotations
 
@@ -61,7 +62,7 @@ def select_prompt(manifest: dict, key: str, extra_context: str = "") -> tuple[st
     return text, pid
 
 
-# Output cap per page. Was 4096, which a dense reference page exceeds; the
+# Output cap per page. A dense reference page can exceed 4096 tokens; the
 # stop_reason check in ocr_one_page() turns any overrun into a visible failure.
 MAX_OUTPUT_TOKENS = 16000
 
@@ -99,10 +100,9 @@ async def ocr_one_page(client, model: str, prompt_text: str, prompt_id: str,
     markdown = "".join(text_parts).strip()
     usage = msg.usage
     # A page that hits the output cap is TRUNCATED, and nothing downstream
-    # notices: the run reports ok, bytes-per-page looks normal. lucas1995z's
-    # dense three-column reference page stopped at exactly 4096 tokens,
-    # mid-entry, losing its last five references. Refuse to cache it, so the
-    # page surfaces as a FAILED marker instead of shipping short.
+    # notices: the run reports ok, bytes-per-page looks normal, and the end of
+    # the page is simply missing. Refuse to cache it, so the page surfaces as
+    # a FAILED marker instead of shipping short.
     if msg.stop_reason == "max_tokens":
         raise RuntimeError(
             f"output truncated at max_tokens={MAX_OUTPUT_TOKENS} "
@@ -119,3 +119,38 @@ async def ocr_one_page(client, model: str, prompt_text: str, prompt_id: str,
     }
     cache.write(cache_dir, page_index, result)
     return result
+
+
+# Same rules as PROMPT_VERBATIM, applied to a fragment: telling the model the
+# input is a partial page reduces hallucinated continuations at the cut line.
+PROMPT_FRAGMENT = """You are an OCR engine. Extract the text on this page fragment into clean Markdown, verbatim.
+
+This is a *fragment* of a larger page (the page was split geometrically to work around output blocks). Transcribe only what you see; do not invent text past the edge.
+
+Rules:
+- Preserve italic formatting for genus and species names (e.g. *Tyrannosaurus rex*).
+- Preserve heading structure (use # / ## as appropriate).
+- Preserve table structure where present.
+- Preserve in-text citations and bibliographic references exactly.
+- Skip page headers, page footers, and page numbers.
+- For figures: emit `[FIGURE: <one-line description>]` followed by the caption verbatim.
+- Do NOT invent text. If part of the fragment is illegible or cut off, stop there — do not guess what comes next.
+- Output the markdown body only — no preamble, no explanation."""
+
+
+async def ocr_fragment(client, jpeg: bytes, *, model: str = DEFAULT_MODEL,
+                       prompt: str = PROMPT_FRAGMENT) -> str | None:
+    """The markdown of one image (a page or a piece of one), or None when the
+    content filter blocks it. Not cached (the caller decides what to keep).
+    Output cut at the token cap raises, as in ocr_one_page()."""
+    from anthropic import APIStatusError
+    try:
+        msg = await call_image(client, model, prompt, jpeg)
+    except APIStatusError as e:
+        body = (e.response.text or "") if e.response is not None else ""
+        if e.status_code == 400 and "content filtering" in body:
+            return None
+        raise
+    if msg.stop_reason == "max_tokens":
+        raise RuntimeError(f"output truncated at max_tokens={MAX_OUTPUT_TOKENS}")
+    return "".join(b.text for b in msg.content if b.type == "text").strip()

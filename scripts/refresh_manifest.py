@@ -18,7 +18,7 @@ What it does:
        entry. Acquisition/conversion/closed_access/index untouched.
      - If new in bib/YAMLs: insert a fresh entry with empty acquisition
        and conversion (same shape as bootstrap.py).
-  3. For keys *only* in the old manifest (not in current bib/YAMLs):
+  3. For keys *only* in the existing manifest (not in current bib/YAMLs):
      keep the entry but set in_bib=False, genera=[], clades=[]. This
      way a paper we've acquired doesn't disappear if its bib entry was
      pruned upstream.

@@ -25,8 +25,8 @@ in-cell fragments.
 
 Safety
 ------
-These papers ALSO contain genuine data tables (wang2019c's species list,
-díezdíaz2018a's crown measurements), so this only ever touches:
+These papers ALSO contain genuine data tables (species lists, measurement
+tables), so this only ever touches:
 
   * separator rows with exactly two cells
   * `| N | text |` rows — exactly two columns, no internal pipes. N may be
@@ -44,8 +44,8 @@ Do NOT relax the mandatory digits in the gutter cell. An empty first cell also
 describes an ordinary two-column data-table row, and old monographs with real
 measurement tables trip the watermark gate by accident (a cell starting `A<br>`
 is enough). Accepting those rows inflates the gutter count past --min-rows and
-eats the tables — a corpus sweep caught it on 10 keys, maryańska1975a worst at
-41 KB. --min-rows is the only thing standing between those files and damage.
+eats the tables. --min-rows is the only thing standing between those files and
+damage.
 
 Watermark capitals are dropped from ANYWHERE in a cell, not just the front: the
 rotated text runs down the page edge, so marker interleaves single letters
@@ -72,13 +72,13 @@ across paragraphs. A number that broke a hyphenated word closes back up
 The hazard is an author-affiliation block, which is also a short ascending run
 and must survive. Length separates the clear cases (a page of gutter is dozens
 of numbers); for short runs, position decides — a gutter number interrupts a
-sentence, an affiliation number opens a line. viglietti2018a has one of each:
-a 4-long gutter tail (203-206, mid-line, removed) and affiliations 6-9 (line-
-initial, kept, along with "107 Rotten Row" and "2073 Market Street").
+sentence, an affiliation number opens a line. One paper can have both: a
+4-long gutter tail (mid-line, removed) and affiliations 6-9 (line-initial,
+kept, along with street numbers such as "2073 Market Street").
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/untable_gutter_manuscript.py --key royo-torres2017a
+    ./.runtime/venv/bin/python scripts/untable_gutter_manuscript.py --key KEY
     ./.runtime/venv/bin/python scripts/untable_gutter_manuscript.py --key K --apply
 """
 
@@ -99,10 +99,10 @@ SEP2 = re.compile(r"^\s*\|[-: ]+\|[-: ]+\|\s*$")          # two-cell separator
 # `| 333<br>334<br>335 |`. Digits stay MANDATORY: an optional/empty first cell
 # also matches ordinary two-column data-table rows, and on old monographs with
 # real measurement tables that quietly inflates the gutter count past --min-rows
-# and eats the tables (maryańska1975a: 41 KB). Don't.
+# and eats the tables. Don't.
 GUTTER = re.compile(
     r"^\s*\|\s*(\d{1,4}(?:\s*<br>\s*\d{1,4})*)\s*\|([^|]*)\|\s*$")
-# Long manuscripts pass line 999 (díezdíaz2018a reaches 1000+), so 4 digits are
+# Long manuscripts pass line 999, so 4 digits are
 # allowed — but capped below 1800 in gutter_values() so a two-column table keyed
 # by publication year can never be mistaken for a gutter.
 MAX_LINE_NO = 1500
@@ -116,10 +116,10 @@ def gutter_values(cell: str) -> bool:
 # row with a blank first cell and real content is never touched.
 WM_ROW = re.compile(r"^\s*\|\s*\|\s*(?:[ACEDPTMNUSRI](?:<br>)?)+\s*\|\s*$")
 # Blank gutter cell where the LINE NUMBER got swept into the text cell behind a
-# watermark letter (díezdíaz2018a: `|  | I<br>1 6 Museum für Naturkunde…`).
+# watermark letter (`|  | I<br>1 6 Museum für Naturkunde…`).
 # Requiring the watermark fragment keeps this narrow — a data-table row with an
 # empty first cell doesn't open with a lone capital + <br>, so the blanket
-# empty-gutter rule (which ate maryańska1975a) stays rejected.
+# empty-gutter rule (which eats data tables) stays rejected.
 WM_LEAD_ROW = re.compile(r"^\s*\|\s*\|\s*[ACEDPTMNUSRI]<br>([^|]*)\|\s*$")
 SINGLE = re.compile(r"^\s*\|([^|]*)\|\s*$")
 AM = re.compile(r"ACCEPTED\s*MANUSCRIPT", re.I)
@@ -139,8 +139,8 @@ BARE_NUM = re.compile(r"(?<!\S)(\d{1,4})(?!\S)")
 HYPHEN_NUM = re.compile(r"(?<=[A-Za-z])-(\d{1,4})(?=\s)")
 # A long ascending run is gutter on length alone. Short runs are ambiguous: the
 # affiliation block ("5 National Museums…, 6 2073 Market Street…") is a genuine
-# ascending run of 4 and MUST survive, but so is a 4-long tail of real gutter
-# (viglietti2018a's 203-206). Length alone can't separate them — position can.
+# ascending run of 4 and MUST survive, but so is a 4-long tail of real gutter.
+# Length alone can't separate them — position can.
 # A gutter number interrupts a sentence; an affiliation number opens a line.
 MIN_RUN = 8          # accepted on length alone
 MIN_RUN_MIDLINE = 3  # accepted if mostly mid-line as well
@@ -161,7 +161,7 @@ def inline_runs(text: str) -> list[list[tuple[int, int, int]]]:
     """
     toks = [(m.start(1), m.end(1), int(m.group(1))) for m in BARE_NUM.finditer(text)]
     toks += [(m.start(1), m.end(1), int(m.group(1))) for m in HYPHEN_NUM.finditer(text)]
-    # 4 digits so long manuscripts (díezdíaz2018a runs past line 1400) are
+    # 4 digits so manuscripts past line 999 are
     # covered, capped below 1800 so citation years can never join a run.
     toks = sorted(t for t in toks if t[2] <= MAX_LINE_NO)
 

@@ -22,8 +22,8 @@ pdf_source) if the key exists — like scripts/stitch_source_images.py, it does
 NOT set acquisition.source (that's /intake's job).
 
 Usage:
-  ./.runtime/venv/bin/python scripts/photocopier_stitch.py --key young1937a
-  ./.runtime/venv/bin/python scripts/photocopier_stitch.py --key dong1973a \
+  ./.runtime/venv/bin/python scripts/photocopier_stitch.py --key KEY
+  ./.runtime/venv/bin/python scripts/photocopier_stitch.py --key KEY \
       --select IMG_0612 IMG_0620     # inclusive filename range (a chapter)
   # tune the effect (rarely needed; defaults tuned on 1930s-70s letterpress):
   ...  --white 0.93 --black 0.55 --gamma 1.15

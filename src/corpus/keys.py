@@ -1,7 +1,7 @@
 """Citation keys: one spelling everywhere, and the --key/--keys-file/--all options.
 
-Keys are NFC. macOS hands back file names in NFD (`agnolín2010a.pdf` read
-from the disk is a different string from the manifest's key) and APFS hides
+Keys are NFC. macOS hands back file names in NFD (a key with an accented
+letter, read from the disk, is a different string from the manifest's key) and APFS hides
 the difference when opening files, Linux does not. Every key entering a
 script, from argv, a keys file or a file name, goes through `nfc()`.
 """

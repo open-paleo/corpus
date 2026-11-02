@@ -4,12 +4,12 @@
 The defect
 ----------
 Some publisher PDFs carry a font whose ToUnicode CMap maps real glyphs to
-unprintable C0 controls. avrahami2024a (Anat. Rec.) maps hyphen to \\x02, minus
+unprintable C0 controls. One Anat. Rec. paper maps hyphen to \\x02, minus
 to \\x01, "~" to \\x03, degree to \\x04 and multiplication to \\x05. Nothing
 warns you: marker drops the controls silently, and so does the clipboard, so
 the text reads plausibly while the characters are simply gone —
 
-    semi-fossorial          -> semifossorial     (words fused; 721 of them)
+    semi-fossorial          -> semifossorial     (words fused)
     99.674 + 0.439/-0.197   -> 99.674 + 0.439/0.197
     Silhouettes are 2x      -> Silhouettes are 2
     essentially ~0deg       -> essentially 0.
@@ -19,10 +19,10 @@ becomes two positive numbers.
 
 The fix
 -------
-pypdfium2 (what marker reads through) drops these. PyMuPDF resolves most of
-them — on avrahami2024a it recovers 707 of 721 hyphens unaided. So re-extract
-with PyMuPDF, apply a per-file mapping for whatever controls remain, and splice
-the recovered characters back into the existing markdown.
+Marker drops the controls; the PDF's text layer, read through corpus.pdf.text,
+keeps them as control characters. So re-extract the text layer, apply a
+per-file mapping from control code to glyph, and splice the recovered
+characters back into the existing markdown.
 
 Repairs are derived, never guessed: for each whitespace token in the PDF text
 containing a target glyph, the "stripped" form (that glyph deleted) is what
@@ -39,12 +39,12 @@ a wrong substitution is worse than a missing character. Pass it explicitly:
 Scope
 -----
 Only for files where a FEW codes are mis-mapped. When a PDF shows the whole
-\\x01-\\x1f spread (rauhut2003a, yates2003b) the entire font is unmapped and no
+\\x01-\\x1f spread the entire font is unmapped and no
 substitution table can recover it — those need vision re-OCR.
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/repair_control_glyphs.py --key avrahami2024a \\
+    ./.runtime/venv/bin/python scripts/repair_control_glyphs.py --key KEY \\
         --map 01=U+2212 --map 03=~ --map 04=U+00B0 --map 05=U+00D7
     ... --apply
 """
@@ -62,9 +62,9 @@ from corpus.keys import key_arg
 from corpus.io import atomic_write_text
 
 # Base set worth restoring. Whatever --map produces is ADDED to this at run
-# time: the corpus turned out to lose accented letters (á é í ó — Spanish
-# author names) far more often than symbols, and a fixed symbol-only set
-# silently ignored every one of them.
+# time: papers lose accented letters (á é í ó — Spanish author names) far
+# more often than symbols, and a fixed symbol-only set would silently ignore
+# every one of them.
 BASE_TARGETS = "-−~°×–—"
 TARGETS = BASE_TARGETS
 
@@ -157,7 +157,7 @@ def repairs(text: str, md: str, ctx: int = 28):
     insert only where it resolves to exactly ONE site.
     """
     # BOTH sides must drop the target glyphs, or any context containing a
-    # second hyphen can never match (684 false "not found" on avrahami2024a).
+    # second hyphen can never match, and most of them would report "not found".
     nmd, nmap = normalise(md, True)
     found, ambiguous, missing = [], 0, 0
     for m in re.finditer("[" + re.escape(TARGETS) + "]", text):
@@ -237,8 +237,8 @@ def main() -> int:
         entry = _json.loads(Path(args.map_file).read_text(encoding="utf-8")).get(args.key, {})
         mapping.update({chr(int(c, 16)): g for c, g in entry.items()})
     if not mapping:
-        sys.exit(f"no mapping for {args.key} — identify its glyphs first "
-                 f"(scripts/identify_control_glyphs.py)")
+        sys.exit(f"no mapping for {args.key}: identify each control code's glyph on "
+                 f"the rendered page first, then pass --map")
     global TARGETS
     TARGETS = BASE_TARGETS + "".join(sorted(set(mapping.values()) - set(BASE_TARGETS)))
     text, left = pdf_text(args.key, mapping)

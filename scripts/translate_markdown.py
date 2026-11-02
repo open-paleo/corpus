@@ -16,8 +16,8 @@ Idempotency: per-chunk responses cached at
 `.runtime/cache/translation/{key}/chunk-NNNN.json`. If a paper is half-
 translated when interrupted, re-running picks up where it left off.
 
-Safety guards (added after horner1979 was overwritten with a refusal
-message because the marker output was image-references only):
+Safety guards (a marker output holding only image references draws a refusal
+message from the model, which would otherwise replace the file):
   - Skip if the input has fewer than MIN_ALPHA_CHARS_TO_TRANSLATE alphabetic
     characters (almost always means a failed scan / image-only stub).
   - Detect LLM refusal patterns in each chunk's response and treat them as
@@ -60,8 +60,8 @@ from corpus.config import require_env
 from corpus.vision.client import make as make_client
 from corpus.io import atomic_write_text
 from corpus.io import jsonl_append
-# Sonnet for every language. Haiku 5.5 left 21 of 37 paragraphs of furrer2025z
-# in German while reporting end_turn, and swapped printed taxon names
+# Sonnet for every language. Haiku 5.5 left most paragraphs of a German paper
+# untranslated while reporting end_turn, and swapped printed taxon names
 # (docs/notes/conversion.md, "Model choice").
 DEFAULT_MODEL = SONNET
 MAX_CHARS_PER_CHUNK = 18000  # ~4.5k input tokens
@@ -91,12 +91,10 @@ TRUSTED_LANGS = {"en", "es", "fr", "de", "it", "pt", "ja", "ru", "zh-cn", "zh-tw
 # CJK sources need the stronger model + an explicit anti-transliteration rule.
 # Chinese/Japanese/Korean dinosaur names are written in characters (e.g. 晓龙)
 # and must be rendered as their ESTABLISHED Latin genus (Xiaosaurus), never
-# phonetically ("Xialong"). Haiku 4.5 reliably mistranslated these; Sonnet maps
-# them correctly. (Caught on dong1983b; audit found dong1978b + zhu1994 with the
-# same bug.) Haiku 5.5 gets 晓龙 right with CJK_TAXON_RULE but still misses rarer
-# names: on dong1983b it gave 大地龙 as "*Dilong* (?)" where Sonnet gave
-# *Tatisaurus* (tested 2026-10-07). With Sonnet now the default for every
-# language, the upgrade below never fires; an explicit --model is used as given.
+# phonetically ("Xialong"). Haiku gets 晓龙 right with CJK_TAXON_RULE but misses
+# rarer names (大地龙 as "*Dilong* (?)" where Sonnet gives *Tatisaurus*). Sonnet
+# is the default for every language, so the upgrade below fires only if the
+# default changes; an explicit --model is used as given.
 CJK_LANGS = {"zh", "zh-cn", "zh-tw", "ja", "ko"}
 CJK_MODEL = SONNET
 CJK_TAXON_RULE = (
@@ -112,8 +110,7 @@ CJK_TAXON_RULE = (
 # Minimum prose density to attempt translation. A markdown body with fewer than
 # this many alphabetic characters is almost always image-references-only or a
 # stub from a failed scan; sending it to the LLM produces refusal text that
-# would clobber the original. (Caught after horner1979 was overwritten with a
-# Haiku refusal message.)
+# would clobber the original.
 MIN_ALPHA_CHARS_TO_TRANSLATE = 300
 
 # Patterns indicating the LLM refused/declined to translate rather than
@@ -140,9 +137,8 @@ def is_refusal(text: str) -> str | None:
 def sample_body_languages(body: str, n_samples: int = 5, sample_chars: int = 1500) -> dict[str, float]:
     """Sample n evenly-spaced regions, run langdetect on each, aggregate by
     prob × len(window). Mirrors audit_languages.py so the two scripts agree
-    on what's bilingual; a single-sample heuristic mis-detects papers like
-    xu2000a where Chinese front matter alternates with Latin taxonomic
-    names (langdetect reads it as en+vi+no on one window, all-Chinese on
+    on what's bilingual; a single-sample heuristic mis-detects papers whose
+    Chinese front matter alternates with Latin taxonomic names (langdetect reads it as en+vi+no on one window, all-Chinese on
     another)."""
     body = body.strip()
     if len(body) < sample_chars:
@@ -212,7 +208,7 @@ INVENTED_HEADING_RE = re.compile(
 def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
     """Undo what the model adds at the top of a chunk that starts mid-page.
 
-    Seen on bilotte1985z (18 chunks, 8 affected): a `---` page separator the
+    The additions: a `---` page separator the
     source chunk does not start with; French headings from the source echoed
     untranslated ahead of the translation; the chunk's first paragraph
     promoted to a `#` heading (a `- ` list item became `# — `); an invented
@@ -232,16 +228,16 @@ def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
             else:
                 break
             paras.pop(0)
-    # A heading the model invents to announce its output (leanza2003a, vilas1982a;
-    # 45 variants over 29 keys, removed 2026-10-09: "# Translation", "# Paleontology
-    # Translation", "# [BEGINS TRANSLATION]", "# Translation from German to English").
+    # A heading the model invents to announce its output ("# Translation",
+    # "# Paleontology Translation", "# [BEGINS TRANSLATION]", "# Translation from
+    # German to English").
     while paras and INVENTED_HEADING_RE.fullmatch(paras[0].strip()) and paras[0].strip() not in src:
         notes.append(f"dropped invented heading {paras[0].strip()[:50]!r}")
         paras.pop(0)
     if s.startswith("|"):
         # Only trim a short caption the model put above the table. If the model
-        # dropped the table itself (moser2003a chunk 1, a contents table), there
-        # is nothing to align to and the loop used to eat the chunk's prose.
+        # dropped the table itself, there is nothing to align to, and trimming
+        # up to the next table would eat the chunk's prose.
         first_table = next((j for j, p in enumerate(paras) if p.lstrip().startswith("|")), None)
         if first_table is not None and first_table <= 2 \
                 and sum(len(p) for p in paras[:first_table]) < 400:
@@ -266,7 +262,7 @@ def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
 
 
 # A non-CJK chunk that comes back this much shorter than its source dropped
-# content (bilotte1985z chunk 4: 0.62, one figure and three paragraphs gone,
+# content (at 0.62 a chunk had lost a figure and three paragraphs, with
 # stop_reason end_turn). The whole-document 50% guard cannot see a loss that
 # small in a long document.
 MIN_CHUNK_RATIO = 0.8
@@ -277,11 +273,10 @@ def chunk_cache_key(text: str) -> str:
 
 
 def _is_stale_cache(cached: dict) -> bool:
-    """Reject cache entries written before truncation detection existed.
+    """Reject a cached chunk that may be truncated.
 
-    A chunk that stopped on max_tokens lost its tail silently. Entries written
-    by the current code carry stop_reason; legacy entries don't, so fall back
-    to the old 8192 cap as the tell.
+    A chunk that stopped on max_tokens lost its tail silently. An entry with
+    no stop_reason is judged by its output reaching the 8192-token cap.
     """
     if cached.get("stop_reason") == "max_tokens":
         return True
@@ -392,8 +387,8 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict,
 
     # A caller-supplied --src-lang bypasses detection entirely. Needed for
     # bilingual papers whose English abstract dominates langdetect even though
-    # the body is not English: huang2005z is 31% CJK by character count but
-    # detects as "en", so the automatic path skips it. Only use this when you
+    # the body is not English: a paper 31% CJK by character count can detect
+    # as "en", so the automatic path skips it. Only use this when you
     # have eyeballed the body and know the language.
     if src_lang_override:
         src_lang = src_lang_override

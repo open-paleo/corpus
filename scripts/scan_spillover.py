@@ -8,10 +8,10 @@ cross-reference stubs. Marker and vision both convert all of it, the result is
 fluent English, and every other QC script passes it. The damage is to search
 and to citation: a quotation can be taken from the wrong paper.
 
-`trim_reprint_spillover.py` trims the Nature case it can prove (title heading
-to "Correspondence and requests"). This script only REPORTS, and covers what
-that one cannot see: Science, pre-1997 Nature, book chapters, encyclopedia
-entries, and orphan `z` keys with no citation title.
+This script only REPORTS; trim by hand after reading the headings. By default
+it covers Nature and Science, plus orphan `z` keys with no citation title;
+--chapters adds book chapters (encyclopedia entries among them) and
+proceedings.
 
 Signals, per file:
   titles   title-like `#`/`##` headings that are not the paper's own title
@@ -31,7 +31,7 @@ Material", and monographs with a reference list per chapter.
                                               # section headings and translated titles
                                               # score, so read the list, do not count it)
     scripts/scan_spillover.py --all           # every key with markdown (noisier still)
-    scripts/scan_spillover.py --key xu2002a
+    scripts/scan_spillover.py --key KEY
     scripts/scan_spillover.py --min-score 1
 """
 from __future__ import annotations

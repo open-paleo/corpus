@@ -21,14 +21,12 @@ its key with --key) and no PDF on disk:
      acquisition.source = "bhl" with conversion.vision_ocr_needed set: the
      paper then shows up in /intake (intake_discover: "unconverted") and goes
      to vision OCR like any other scan. BHL's own OCR text is not kept as the
-     paper's markdown: it is too rough (vision OCR replaced it for 45 of the
-     first 46 BHL papers converted).
+     paper's markdown: it is too rough.
 
 A PageID's sequence number in its volume (which names the JP2) comes from the
 bucket's OCR file names (ocr/item-{ItemID}/item-{ItemID}-{PageID}-{seq}.txt),
 or, for a volume with no OCR in the bucket, from BHL's API (GetItemMetadata:
-the page list in order; position = SequenceOrder, checked against the full
-page table on three volumes, 1,428 pages). The API also gives each page's
+the page list in order; position = SequenceOrder). The API also gives each page's
 printed number, which locates an article in a volume better than reading it
 off the OCR. The API needs BHL_API_KEY (free); without it, volumes with no
 OCR in the bucket are reported as no_pages.
@@ -194,9 +192,8 @@ def narrow_item(item_id: int, pages: dict[int, tuple[int, str | None]], cite: di
     Printed page numbers come from BHL's API page metadata when available,
     else from each page's OCR text. Within one article, sequence minus
     printed number is constant, so only hits sharing the commonest offset
-    (+-2, for unnumbered plates) are kept: a stray "120" on another page of
-    the volume can no longer stretch the range (osborn1903a asked for 609
-    pages before this)."""
+    (+-2, for unnumbered plates) are kept, so a stray "120" on another page
+    of the volume cannot stretch the range."""
     start, end = page_range(cite.get("pages"))
     if not start:
         return [], "no page range in the citation: pass --item-seqs"

@@ -19,7 +19,7 @@ The `d`/em-dash half is the dangerous one. An en dash usually joins two
 capitalised words, so `AptianeAlbian` at least looks wrong; an em dash between
 two taxon names leaves a single plausible lowercase-joined word with nothing to
 catch the eye — `adTitanosauridaed`, `adDryolestoidead`, `adChelidaed` are all
-faunal-list entries in leanza2004a.
+faunal-list entries in one paper.
 
 Identification is font-keyed, not textual. A regex over the markdown cannot do
 this job: it would rewrite `ScienceDirect` and every other legitimate camel
@@ -33,15 +33,15 @@ sign, `C` and `D` are both plus signs, `G` is a plus-minus, `$` a multiplication
 dot. Those live in KEY_GLYPHS below, keyed by (key, character) and each read off
 a rendered crop. Anything not in either table is reported, never guessed at.
 
-Guessing here is not safe, and I know because I tried. From context alone `!` in
+Guessing here is not safe. From context alone `!` in
 "high!30-32 cm wide" reads as an approximation mark; it is a multiplication sign,
 and "45 cm high × 30–32 cm wide" is a different measurement from "approximately
 30-32 cm wide". `G` in "(99.5 G 1.5 Ma)" is a plus-minus on a radiometric age.
 Every mapping in both tables was read off a rendered crop, not inferred.
 
     scripts/repair_dash_font_substitutions.py --audit        # scope, no writes
-    scripts/repair_dash_font_substitutions.py --key leanza2004a
-    scripts/repair_dash_font_substitutions.py --key leanza2004a --apply
+    scripts/repair_dash_font_substitutions.py --key KEY
+    scripts/repair_dash_font_substitutions.py --key KEY --apply
     scripts/repair_dash_font_substitutions.py --all --apply
 """
 from __future__ import annotations
@@ -81,17 +81,15 @@ KEY_GLYPHS = {
     ("makovicky2010a", "C"): "+",      # "suffixed with a '+' are for taxa known"
     ("mateus2009a", "C"): "+",         # "Stegosaurus + Dacentrurinae"
     ("vanitterbeeck2004z", "G"): "±",  # "Formation (99.5 ± 1.5 Ma), Xinjiang"
-    # paul2008a's "C" is deliberately absent: its glyph renders as nothing at
-    # all on the page (an artefact inside a table), so there is no character to
+    # One more paper's "C" is deliberately absent: its glyph renders as nothing
+    # at all on the page (an artefact inside a table), so there is no character to
     # restore. Left reported.
 }
 
 CONTEXT = 24
 
 
-# A markdown link, with one level of parentheses allowed inside the URL —
-# Elsevier's refhub URLs carry them (`.../S0195-6671(24)00168-X/sref17`).
-# Tokens the markdown no longer contains, split by how much they matter to a
+# Tokens the markdown does not contain, split by how much they matter to a
 # reader. A bibliography page range nobody looks at twice and a figure callout
 # that reads as a typo are both "residue", but only one of them is worth
 # chasing, so a single combined number stops meaning anything as it shrinks.
@@ -129,11 +127,11 @@ def occurrences(doc):
     the characters one at a time would invalidate the next one's context. A
     token carries all of its own dashes and is repaired in one substitution.
 
-    The page text is rebuilt from rawdict rather than taken from get_text() so
+    The page text is rebuilt from rawdict rather than taken from doc.text() so
     each character can be tagged with the font that drew it; the block/line/span
-    walk is the same order get_text() uses.
+    walk is the same order doc.text() uses.
     """
-    # rawdict is expensive, and only ~3% of the corpus embeds this font, so
+    # rawdict is expensive, and few papers embed this font, so
     # check the (much cheaper) font resource list before walking any glyphs.
     if not any(f == DASH_FONT
                for pno in range(len(doc)) for f in doc.page_fonts(pno)):

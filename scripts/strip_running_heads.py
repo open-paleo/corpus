@@ -10,8 +10,8 @@ running head is visually part of the text block, so it often comes through.
 Worse, marker and vision both sometimes promote it to a `##` heading, which
 corrupts the document outline (a fake section per page).
 
-Rather than hand-writing a regex per paper (done three times now: mader1989a,
-hulke1879a, ...), this detects page furniture **structurally**: a running head
+Rather than a hand-written regex per paper, this detects page furniture
+**structurally**: a running head
 is a SHORT line whose text, once page numbers are stripped, RECURS many times
 across the document. Real prose lines don't.
 
@@ -46,7 +46,7 @@ per-key, right after a vision intake, eyeballing the handful of lines it names.
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/strip_running_heads.py --key hulke1879a
+    ./.runtime/venv/bin/python scripts/strip_running_heads.py --key KEY
     ./.runtime/venv/bin/python scripts/strip_running_heads.py --key K --apply
     ./.runtime/venv/bin/python scripts/strip_running_heads.py --all   # review only
 """
@@ -74,8 +74,7 @@ _MARKUP = re.compile(r"^\s*(?:!\[|<[a-zA-Z/])|\]\(")
 # Figure/table/plate captions are CONTENT, never page furniture — but a run of
 # them collapses to one normalised key once digits are stripped
 # ("Fig. 3.1 (Legend see p. 78)" / "Fig. 5 (Legend see p. 81)" both become
-# "fig legend see p") and so trivially clears the repeat threshold. Caught on
-# galton1980a, where three real cross-references were proposed for deletion.
+# "fig legend see p") and so trivially clears the repeat threshold.
 _CAPTION = re.compile(
     r"^\s*[#*_\s]*(?:fig(?:ure)?s?|tab(?:le)?s?|plates?|pl)\b\.?\s*[\dIVXivx]",
     re.IGNORECASE)
@@ -83,9 +82,7 @@ _CAPTION = re.compile(
 # Markdown table rows are DATA, never page furniture. Whole blocks of them
 # share a normalised key once digits are stripped — "| Total length | 363 mm |"
 # and "| Total length | 185 mm |" both become "total length mm" — so a
-# measurement or specimen table trivially clears the repeat threshold. Caught
-# on martinelli2004a (MACN-PV specimen rows) and sereno1996a (phalanx
-# measurements).
+# measurement or specimen table trivially clears the repeat threshold.
 _TABLE_ROW = re.compile(r"^\s*\|")
 
 

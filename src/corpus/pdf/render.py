@@ -47,6 +47,13 @@ def render_pil(pdf_path, page_index: int, *, dpi: float = 150):
         doc.close()
 
 
+def pil_jpeg(img, *, quality: int = 85) -> bytes:
+    """JPEG bytes of a PIL image (a page, or a piece cut from one)."""
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=quality)
+    return buf.getvalue()
+
+
 def render_jpeg_file(pdf_path, page_index: int, **kw) -> bytes | None:
     """render_jpeg for one page (0-based) of the PDF at pdf_path; None if the
     page is out of range."""

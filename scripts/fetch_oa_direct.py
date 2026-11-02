@@ -6,9 +6,9 @@ for papers Unpaywall has no usable copy of.
 
 Strategy: for every still-missing entry with a DOI, follow the DOI redirect
 to the publisher landing page, then parse <meta name="citation_pdf_url">
-(or a few publisher-specific patterns). PeerJ, PLOS, Frontiers, MDPI, AMNH,
-Acta Pal Polonica, Zenodo, etc. all expose this meta tag, so one generic
-fetcher catches the long tail of OA misses.
+(or take the body as the PDF when the DOI redirects straight to one). PeerJ,
+PLOS, Frontiers, MDPI, AMNH, Acta Pal Polonica, Zenodo, etc. all expose this
+meta tag, so one generic fetcher catches the long tail of OA misses.
 
 Resume-safe.
 """
@@ -67,8 +67,8 @@ def resolve_pdf_url(landing_url: str, html: str) -> str | None:
             base = urllib.parse.urlsplit(landing_url)
             url = f"{base.scheme}://{base.netloc}{url}"
         return url
-    # Frontiers occasionally uses og:url+/pdf appendix; PeerJ exposes meta
-    # already. Skip publisher-specific fallbacks for now.
+    # No publisher-specific fallbacks (Frontiers sometimes offers only an
+    # og:url + /pdf link; PeerJ exposes the meta tag).
     return None
 
 

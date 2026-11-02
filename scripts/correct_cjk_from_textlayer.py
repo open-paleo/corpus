@@ -3,8 +3,7 @@
 
 Vision OCR substitutes plausible characters in CJK text, and in Chinese one
 character is a word: 肱 humerus -> 胫 tibia, 锄 vomer -> 颧 jugal, 砾 gravel -> 碎,
-髫髻山组 -> 髻髻山组. A born-digital PDF's own text layer is the control
-(2026-10-14 audit: 57 in pang2024a, 93 more over nine keys).
+髫髻山组 -> 髻髻山组. A born-digital PDF's own text layer is the control.
 
 Proposes, per key, every small difference between the layer's CJK characters
 and the markdown's (the .original.md if the key is translated):

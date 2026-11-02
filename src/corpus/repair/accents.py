@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Reattach accents that Elsevier's companion font separates from their letter.
 
-PROTOTYPE — two keys only. See "Scope" below before widening it.
+PROTOTYPE — only the papers listed in ACCENTS. See "Scope" below before
+widening it.
 
 Elsevier sets an accented letter as two glyphs: the base letter in the body
 font and the accent in a companion subset (`AdvP4C4E59`). The companion ships
@@ -14,29 +15,29 @@ mark or as a C0 control character that marker drops outright:
     México              ->  M<0x01>exico         (or "M exico")
     Amparo à Pesquisa   ->  Amparo <0x03>a Pesquisa
 
-`restore_symbol_glyphs.py` has had this gated behind `--accents`, off, for a
-good reason: **reading order does not identify the base letter.** The accent
+`restore_symbol_glyphs.py` keeps this behind `--accents`, off by default,
+because **reading order does not identify the base letter.** The accent
 can be emitted before or after the letter it belongs to, and the surrounding
 run gives no reliable clue — in `Educaç~ao` the tilde sits after `ç` but
 belongs to the `a`, while other papers emit it the other way round.
 
 **Geometry settles it.** The accent is drawn over its own letter, so its bounding
 box overlaps that letter's box almost exactly and overlaps the neighbours
-barely at all. On lindoso2019a p1 the tilde in `Educaç~ao` overlaps the
+barely at all. In one paper the tilde in `Educaç~ao` overlaps the
 following `a` by 3.32pt of its 3.3pt width, and the preceding `ç` by -0.10.
 Picking the maximum-overlap neighbour is unambiguous at every site inspected,
 and it does not care which side of the letter the accent was emitted on.
 
 Scope: the glyph tables below are keyed by (key, font, code) because these
-subsets reuse codes — `\\x01` is an acute in ramírez-velasco2022a but a degree
-sign in the *same paper's* other companion font, and `\\x03` is a grave in one
+subsets reuse codes — `\\x01` is an acute in one paper's companion font but a
+degree sign in the *same paper's* other companion font, and `\\x03` is a grave in one
 font and an en dash in the other. Every entry here was read off a rendered 9x
 crop of the line it comes from. Widening this to the rest of the corpus means
 identifying each new paper's codes the same way — the geometry generalises, the
 code-to-accent mapping does not.
 
-    scripts/repair_accent_glyphs.py --key lindoso2019a
-    scripts/repair_accent_glyphs.py --key lindoso2019a --apply
+    scripts/repair_accent_glyphs.py --key KEY
+    scripts/repair_accent_glyphs.py --key KEY --apply
 """
 from __future__ import annotations
 
@@ -73,8 +74,8 @@ def sites(doc, key: str):
 
     The base is searched for on the whole page, not among the accent's
     neighbours in text order: pdfium does not keep these accents next to
-    their letter (PyMuPDF did). Each accent is then placed just before its
-    base in the base's line, so the word around it reads as it did.
+    their letter (PyMuPDF does). Each accent is then placed just before its
+    base in the base's line, so the word around it reads in order.
     """
     out = []
     for pno in range(len(doc)):
@@ -127,7 +128,7 @@ def sites(doc, key: str):
                     continue
                 seq.append(((lj, j), item))
             # pdfium leaves a space where an accent from elsewhere on the page
-            # sat in its text order ("Aut  \x01onoma", ramírez-velasco2022a);
+            # sat in its text order ("Aut  \x01onoma");
             # the letters either side touch. A word space always leaves a gap,
             # so a space between touching letters is dropped.
             new, pos = [], {}
@@ -240,9 +241,9 @@ def repair(doc, md: str, key: str, *, quiet: bool = False) -> tuple[str, dict]:
         # those with spaces ("Ci ~ ^encia"). One pattern covers every reading —
         # each accent optional, with optional space either side.
         # A word broken across a line leaves a fragment ("Neu-/quen"), and
-        # before the word-boundary guards below such a fragment matched inside
-        # unrelated words — "quen" hit eleven times. The boundaries do the real
-        # work; this only rejects something too small to bound meaningfully.
+        # without the word-boundary guards below such a fragment matches inside
+        # unrelated words. The boundaries do the real work; this only rejects
+        # something too small to bound meaningfully.
         # Keep it at 3, not higher: "São" and "Ávila" are three and five.
         if sum(c.isalnum() for c in chars) < 3:
             missed += 1
