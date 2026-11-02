@@ -226,24 +226,14 @@ On Latin-script layers most "subs" are the layer's own broken accents
 (vision is right) and most "drops" are text inside charts and maps; read the
 drops, and treat an empty or near-empty page as a real loss.
 
-If output reports `partial=N` for any key, individual pages were content-filter blocked. Run the following (see also `docs/notes/conversion.md`, "Content-filter blocks"):
+If output reports `partial=N` for any key, individual pages were content-filter blocked: they appear in the markdown as `[VISION OCR FAILED FOR PAGE N: ...]` lines. Recover each page with `corpus convert recover` (`scripts/reocr_nooverlap.py`; see `docs/notes/conversion.md`, "Content-filter blocks"):
 
 ```bash
-./.runtime/venv/bin/python scripts/recover_blocked_pages.py --key {key}
+./.runtime/venv/bin/corpus convert recover --key {key} --page N [--page M ...]          # candidate + measurements
+./.runtime/venv/bin/corpus convert recover --key {key} --page N [--page M ...] --apply  # write it (no new API calls)
 ```
 
-Geometric split + fuzzy stitch. After recovery, **eyeball the recovered pages for boundary duplication** — when a paragraph lands fully inside the overlap region, both halves transcribe it and the stitch can leave duplicates. Use the iterative-longest-substring deduplication trick:
-
-```python
-# pseudocode — see commit b97f91a for the real implementation
-def dedupe(md, min_len=80):
-    while (r := find_longest_repeat(md, min_len)):
-        a, b, L = r            # a < b
-        md = md[:b] + md[b+L:] # remove second copy
-    return md
-```
-
-Apply to both the cache JSON's `markdown` field (so future script runs cache-hit on clean content) and the rebuilt `markdown/{key}.md` (joined from cleaned cache via `"\n\n---\n\n"` separator).
+It tries the intact page first, then cuts it only where there is no text (at a two-column page's gutter, and at blank rows), so no pieces overlap and nothing is stitched or duplicated. The first run saves a candidate and prints measurements only: word counts against the PDF's text layer, the longest repeated passage, and the headings in order. **Never print the recovered page text into the conversation**: the content filter applies to your own output too, and echoing a blocked page re-trips it. Read the measurements; a word count well off the text layer, a long repeat or headings out of order mean a bad cut. For a single-column page pass `--columns 1`; for a two-column page whose gutter is not detected, `--columns 2`. `--apply` writes the page into the markdown and a cache entry, so a later `convert vision` run reuses it instead of re-blocking. Known limit: ink that crosses the gutter partway down a page (a figure edge, a stray mark) can still start a full-width band and swap a few lines between the columns; the headings check catches a large swap, not a small one.
 
 ## 8. Translate non-English bodies
 
@@ -456,7 +446,7 @@ After conversion (Path A/D):
 
 - Marker (text-layer): free, ~30-100 s/PDF.
 - Vision OCR (Sonnet 5.5, $2/$10 per MTok): ~$0.01-0.02/page. Older session totals were logged at $3/$15 and overstate spend by ~1.5x: 13-paper batch with 3 vision keys + 2 partials = $0.71; 4 old papers (40 pages) = $0.52.
-- `recover_blocked_pages.py`: ~$0.05-0.15 per blocked page (geometric split).
+- `corpus convert recover` (reocr_nooverlap.py): ~$0.05-0.15 per blocked page, from the number of pieces it takes.
 - `translate_markdown.py` (Sonnet 5.5): ~$0.10-0.20 per typical paper (furrer2025z, 13 pp German: $0.16).
 
 When the batch includes large vision OCR (>50 pages) or expensive recovery, surface a cost estimate to the user before kicking off.

@@ -102,8 +102,9 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus pdf images` | `extract_pdf_images.py` | Embedded figures of `--key K` → `pdf_images/K/` (on demand, gitignored; `/extract-images`) |
 | `corpus convert marker` | `convert_with_marker.py` | PDF → Markdown from the text layer (`--workers 1`) |
 | `corpus convert vision` | `convert_with_vision.py` | PDF → Markdown via Claude vision OCR (per-page cache) |
-| `corpus convert recover` | `recover_blocked_pages.py` | Re-OCR pages the content filter blocked, by halves |
-| | `dedupe_recovered_pages.py` | Remove boundary duplication left by recovery |
+| `corpus convert recover` | `reocr_nooverlap.py` | Re-OCR pages the content filter blocked, cut only on whitespace (candidate first, `--apply` to write) |
+| `corpus convert spread` | `ocr_spread_pdf.py` | Vision OCR of scans whose pages are two-page book spreads, split at the gutter |
+| `corpus convert poster` | `tile_ocr_poster.py` | Vision OCR of a single-canvas conference poster, in tiles |
 | `corpus convert translate` | `translate_markdown.py` | Translate non-English markdown (keeps `.original.md`) |
 | | `correct_cjk_from_textlayer.py` | Correct vision-OCR'd Chinese/Japanese from a born-digital text layer |
 | `corpus repair all` | `corpus.repair` | All text-layer repairs in one pass (dry run unless `--apply`) |
@@ -179,7 +180,7 @@ print(''.join(d[i].get_textpage().get_text_bounded() for i in range(len(d)))[:60
 | Whole pages as `\| 24 \| text \|` tables | accepted-manuscript line numbers | `untable_gutter_manuscript.py`, or vision with gutter context |
 | Journal line repeating once per page | running head | `strip_running_heads.py` (review the list) |
 | Body starts mid-article | marker dropped image-only pages | vision re-OCR |
-| `[VISION OCR FAILED FOR PAGE N: ...]` | content filter blocked a page | `recover_blocked_pages.py`, then check for duplicated text |
+| `[VISION OCR FAILED FOR PAGE N: ...]` | content filter blocked a page | `corpus convert recover --key K --page N`; read the measurements, never print the page; then `--apply` |
 
 **Always verify vision output against the rendered page** for taxon names,
 specimen numbers and systematic headings. On degraded scans the model can
