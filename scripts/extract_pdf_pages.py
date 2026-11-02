@@ -42,6 +42,7 @@ from corpus.config import MANIFEST, PDF_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_arg
 from corpus.pdf.pages import compact as fmt_pages, parse as _parse_pages
+from corpus.io import atomic_path
 
 
 
@@ -103,11 +104,10 @@ def main() -> int:
     out = pdfium.PdfDocument.new()
     out.import_pages(src, [p - 1 for p in pages])
 
-    tmp = pdf_path.with_suffix(".pdf.tmp")
-    out.save(str(tmp))
+    with atomic_path(pdf_path) as tmp:
+        out.save(str(tmp))
     out.close()
     src.close()
-    tmp.replace(pdf_path)
     new_size = pdf_path.stat().st_size
 
     print(f"  output:  {pdf_path}  ({len(pages)}p, {new_size/1024/1024:.1f} MB)")

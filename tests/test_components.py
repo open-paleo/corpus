@@ -387,3 +387,67 @@ def test_pmc_https_url():
     import fetch_pmc_oa as F
     url, md5 = F.https_url("s3://pmc-oa-opendata/PMC1.1/PMC1.1.pdf?md5=abc")
     assert url == "https://pmc-oa-opendata.s3.amazonaws.com/PMC1.1/PMC1.1.pdf" and md5 == "abc"
+
+
+# ---- BHL fetch -------------------------------------------------------------
+
+def test_bhl_narrow_item_keeps_the_consistent_offset():
+    import bhl_fetch as F
+    # A volume: seq = printed + 20 for the article, plus a stray "460" far away.
+    api = [{"PageNumbers": [{"Number": str(i - 20)}]} for i in range(1, 600)]
+    api[50] = {"PageNumbers": [{"Number": "460"}]}         # seq 51 misread as p. 460
+    api[481] = {"PageNumbers": []}                           # an unnumbered plate, seq 482
+    seqs, note = F.narrow_item(1, {}, {"pages": "459-464"}, api)
+    assert seqs == list(range(479, 485)) and "BHL page metadata" in note
+    assert F.narrow_item(1, {}, {"pages": None}, api)[0] == []
+    assert F.narrow_item(1, {}, {"pages": "9000-9001"}, api)[0] == []
+
+
+def test_bhl_helpers():
+    import bhl_fetch as F
+    assert F.printed_number({"PageNumbers": [{"Prefix": "Page", "Number": "%[459]"}]}) == 459
+    assert F.printed_number({"PageNumbers": []}) is None
+    assert F.parse_seqs("212-231") == list(range(212, 232))
+    with pytest.raises(SystemExit):
+        F.parse_seqs("231-212")
+    assert F.accepted({"method": "doi_part"}) and not F.accepted({"method": "fuzzy"})
+    assert F.accepted({"method": "item_unique", "reviewed": True})
+    from corpus.bib import page_range
+    assert page_range("pp. 187–201") == (187, 201) == page_range("187-201, pl. 3")
+    assert page_range("p. 169") == (169, 169) and page_range("501-5") == (501, None)
+    assert page_range("250 pp.") == (None, None) == page_range(None)
+
+
+def test_every_script_parses_its_arguments():
+    """A script with no argument parser treats --help as a real run
+    (bhl_index.py rebuilt this archive's index that way, 2026-11-02)."""
+    from pathlib import Path
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    bare = []
+    for p in sorted(scripts.glob("*.py")):
+        text = p.read_text(encoding="utf-8")
+        if "__main__" not in text:
+            continue
+        if not ("argparse" in text or "from corpus.repair." in text):
+            bare.append(p.name)
+    assert not bare, f"scripts that would run on --help: {bare}"
+
+
+def test_tier_candidates_and_records(tmp_path, monkeypatch):
+    from corpus.fetch import tier
+    (tmp_path / "pdfs").mkdir()
+    (tmp_path / "pdfs" / "held.pdf").write_bytes(b"%PDF")
+    monkeypatch.setattr(tier, "PDF_DIR", tmp_path / "pdfs")
+    m = {"held": {"doi": "10.1/a"}, "nodoi": {}, "tried": {"doi": "10.1/b",
+         "acquisition": {"source": "unpaywall_no_oa"}}, "new": {"doi": "10.1/c"}}
+    assert tier.candidates(m) == ["tried", "new"]
+    assert tier.candidates(m, untried_only=True) == ["new"]
+    assert tier.candidates(m, {"new"}) == ["new"]
+    real = {"acquisition": {"source": "manual"}}
+    assert not tier.record_failure(real, "pmc_oa_no_oa") and real["acquisition"]["source"] == "manual"
+    tier.record_pdf(real, "pmc_oa", "k", "https://x", license="CC BY")
+    assert real["acquisition"]["previous_source"] == "manual" and real["acquisition"]["license"] == "CC BY"
+    failed = {"acquisition": {"source": "unpaywall_no_oa"}}
+    assert tier.record_failure(failed, "pmc_oa_not_found")
+    tier.record_pdf(failed, "pmc_oa", "k", "https://x")
+    assert "previous_source" not in failed["acquisition"]

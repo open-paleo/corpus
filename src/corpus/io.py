@@ -7,6 +7,7 @@ helper never rewrites a file it did not change.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -15,6 +16,24 @@ def atomic_write_text(path: Path, text: str) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+@contextmanager
+def atomic_path(path: Path):
+    """For a library that writes to a path itself (pikepdf `save`): yields a
+    sibling .tmp path, renamed over `path` if the block completes and
+    removed if it raises.
+
+        with atomic_path(pdf_path) as tmp:
+            pdf.save(str(tmp))
+    """
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        yield tmp
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def atomic_write_bytes(path: Path, data: bytes) -> None:

@@ -31,15 +31,14 @@ from __future__ import annotations
 
 import argparse
 import difflib
-import os
 import re
 import sys
-import unicodedata
 from pathlib import Path
 
 import pypdfium2 as pdfium
 from corpus.config import ROOT
 from corpus.keys import key_arg
+from corpus.io import atomic_write_text
 
 HAN = re.compile(r"[一-鿿]")
 DASH = r"[—–－‒―~～\-]"
@@ -94,7 +93,7 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--skip", default="", help="comma-separated edit numbers to leave out")
     args = ap.parse_args()
-    key = unicodedata.normalize("NFC", args.key)
+    key = args.key                       # key_arg: NFC and validated
     path, md, edits = propose(key)
     for n, (s, e, new, old, tab, ctx) in enumerate(edits):
         show = f"…{md[max(0, s - 8):s]}[{old}]{md[e:e + 8]}…".replace("\n", " ")
@@ -105,9 +104,7 @@ def main() -> int:
         keep = [x for n, x in enumerate(edits) if n not in skip]
         for s, e, new, *_ in sorted(keep, reverse=True):
             md = md[:s] + new + md[e:]
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(md, encoding="utf-8")
-        os.replace(tmp, path)
+        atomic_write_text(path, md)
         print(f"applied {len(keep)}, skipped {len(edits) - len(keep)}")
     return 0
 

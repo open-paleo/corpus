@@ -82,12 +82,15 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 |---|---|---|
 | `corpus manifest refresh` | `refresh_manifest.py` | Merge the bib into the manifest; preserves acquisition and conversion |
 | `corpus manifest refresh-dois` | `refresh_dois.py` | DOI-only refresh |
-| | `bootstrap.py` | Rebuild the manifest from scratch (**clobbers state**; fresh checkout only) |
+| | `bootstrap.py` | Rebuild the manifest from scratch (**clobbers state**: refuses a non-empty manifest without `--force`) |
 | `corpus status` | | Held / converted / indexed / missing counts; `--missing` lists keys |
 | `corpus fetch unpaywall` | `fetch_unpaywall.py` | Tier 1: open-access PDFs by DOI via Unpaywall |
 | `corpus fetch unpaywall-by-doi` | `fetch_unpaywall_by_doi.py` | Same, for key/DOI lists not yet in the manifest |
 | `corpus fetch pmc` | `fetch_pmc_oa.py` | Tier 2: PMC Open Access subset by DOI (Europe PMC lookup, NCBI's public bucket) |
 | `corpus fetch oa-direct` | `fetch_oa_direct.py` | Tier 3: DOI landing page → `citation_pdf_url` (`--browser-ua` opt-in) |
+| `corpus bhl setup`, `corpus bhl index` | `bhl_setup.py`, `bhl_index.py` | BHL tier, once: 92 MB of dumps from BHL's S3 bucket → `.runtime/bhl_dumps/bhl.db` (0.55 GB) |
+| `corpus bhl match` | `bhl_match.py` (+ `bhl_item_match.py`) | Match missing keys to a BHL article, else a unique volume; prints a review table |
+| `corpus bhl fetch` | `bhl_fetch.py` (+ `stitch_bhl_pdfs.py`) | Page images of accepted matches → `pdfs/{key}.pdf`, flagged for vision OCR |
 | `corpus intake discover` | `intake_discover.py` | What is pending in `pdfs/`, with a path hint per key |
 | `corpus intake acquire` | `intake_acquire.py` | Record dropped PDFs as acquired (`--vision-ocr REASON` to skip marker) |
 | `corpus intake qc` | `intake_qc.py` | Bytes-per-page triage of a converted batch |
@@ -210,3 +213,29 @@ reporting that no paper says something.
   around logins, paywalls, CAPTCHAs or bot checks.
 - **Rate limits**: Unpaywall allows about 5 requests a second; the fetchers
   pace themselves.
+
+## The BHL tier (old, public-domain papers)
+
+The Biodiversity Heritage Library holds scans of most pre-1930 literature.
+biodiversitylibrary.org itself is behind Cloudflare, so everything goes
+through BHL's open S3 bucket (data dumps, OCR, JP2 page images) and its API.
+
+1. `corpus bhl setup && corpus bhl index`, once (and again to pick up new
+   BHL content).
+2. `corpus bhl match` matches every bib key without a PDF to a BHL *Part*
+   (an article: by DOI, else by title, first author and year), else to the
+   only *Item* (volume) of the cited journal and year. **Read the review
+   table it prints**: a fuzzy match can be a different paper by the same
+   author (a 1990 paper for a 1985 one), and a volume match is the whole
+   volume. DOI matches are accepted automatically; nothing else is fetched
+   until accepted.
+3. `corpus bhl fetch --key K` accepts K's match, downloads its page images
+   and stitches `pdfs/K.pdf`. For a volume match the article is located from
+   the cited pages using BHL's printed page numbers (needs `BHL_API_KEY`) or
+   its OCR; when that fails it says so, and
+   `corpus bhl fetch --key K --item-seqs FIRST-LAST` takes the volume's own
+   page sequence (read it off the volume at biodiversitylibrary.org).
+   Plates bound at the end of a volume, numbered separately, are not
+   included: check the plate references against the PDF.
+4. `/intake`: the papers show as "unconverted" and are flagged for vision
+   OCR. BHL's own OCR is not used as the text (it is too rough).

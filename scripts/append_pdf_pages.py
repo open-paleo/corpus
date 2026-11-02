@@ -35,6 +35,7 @@ from corpus.config import MANIFEST, PDF_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_arg
 from corpus.pdf.pages import compact, parse as parse_spec
+from corpus.io import atomic_path
 
 
 
@@ -95,9 +96,8 @@ def main() -> int:
 
     dst.import_pages(src, [p - 1 for p in pages])
 
-    tmp = target.with_suffix(".pdf.tmp")
-    dst.save(str(tmp))
-    tmp.rename(target)
+    with atomic_path(target) as tmp:
+        dst.save(str(tmp))
     after_bytes = target.stat().st_size
     print(f"  output:  {target}  ({len(dst)}p, {after_bytes/1e6:.1f} MB)")
 

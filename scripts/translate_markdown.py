@@ -36,7 +36,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
-import json
 import re
 import sys
 import time
@@ -59,6 +58,7 @@ from corpus.io import read_json
 from corpus.config import require_env
 from corpus.vision.client import make as make_client
 from corpus.io import atomic_write_text
+from corpus.io import jsonl_append
 # Sonnet for every language. Haiku 5.5 left 21 of 37 paragraphs of furrer2025z
 # in German while reporting end_turn, and swapped printed taxon names
 # (docs/notes/conversion.md, "Model choice").
@@ -374,7 +374,7 @@ async def translate_chunk(client, model: str, chunk: str, src_lang: str | None,
     return d
 
 
-async def translate_one(client, sem, model: str, key: str, manifest: dict, log_fh,
+async def translate_one(client, sem, model: str, key: str, manifest: dict,
                         src_lang_override: str | None = None) -> dict | None:
     started = time.time()
     md_path = MD_DIR / f"{key}.md"
@@ -477,8 +477,7 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict, log_f
         write_ok = False
         print(f"  ! {key}: translated body shrank to {shrink_ratio:.0%} of original ({len(new_body)}/{len(body)} chars), refusing to overwrite")
     if write_ok:
-        # Atomic replace
-        tmp = md_path.with_suffix(".md.tmp"); tmp.write_text(new_body, encoding="utf-8"); tmp.replace(md_path)
+        atomic_write_text(md_path, new_body)
 
     p = PRICES.get(model, PRICES[SONNET])
     cost = (in_tok * p["in"] + c_read * p["cache_r"]
@@ -504,7 +503,7 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict, log_f
         "elapsed_s": round(elapsed, 1),
         "model": model,
     }
-    log_fh.write(json.dumps(summary) + "\n"); log_fh.flush()
+    jsonl_append(LOG, summary)
     return summary
 
 
@@ -548,46 +547,45 @@ async def main_async(args) -> int:
     started = time.time()
     n_ok = n_partial = 0
     total_cost = 0.0
-    with LOG.open("a") as log_fh:
-        for i, k in enumerate(candidates, 1):
-            try:
-                s = await translate_one(client, sem, args.model, k, manifest, log_fh,
-                                        src_lang_override=args.src_lang)
-            except Exception as e:
-                print(f"  ! {k}: {e}"); continue
-            if s is None: continue
+    for i, k in enumerate(candidates, 1):
+        try:
+            s = await translate_one(client, sem, args.model, k, manifest,
+                                    src_lang_override=args.src_lang)
+        except Exception as e:
+            print(f"  ! {k}: {e}"); continue
+        if s is None: continue
 
-            # Update manifest — only mark a paper as "translated" if we actually
-            # wrote the translation. Failed/refused/shrink-blocked attempts get
-            # translation_attempted_at + translation_blocked_reason instead.
-            manifest = manifest_load()
-            conv = manifest[k].setdefault("conversion", {})
-            if s["wrote_translation"]:
-                conv["translated_from"] = s["src_lang"]
-                conv["translation_model"] = s["model"]
-                conv["translation_cost_usd"] = s["cost_usd"]
-                conv["translated_at"] = s["ts"]
-            else:
-                conv["translation_attempted_at"] = s["ts"]
-                conv["translation_blocked_reason"] = s["outcome"]
-            manifest_commit(manifest)
+        # Update manifest — only mark a paper as "translated" if we actually
+        # wrote the translation. Failed/refused/shrink-blocked attempts get
+        # translation_attempted_at + translation_blocked_reason instead.
+        manifest = manifest_load()
+        conv = manifest[k].setdefault("conversion", {})
+        if s["wrote_translation"]:
+            conv["translated_from"] = s["src_lang"]
+            conv["translation_model"] = s["model"]
+            conv["translation_cost_usd"] = s["cost_usd"]
+            conv["translated_at"] = s["ts"]
+        else:
+            conv["translation_attempted_at"] = s["ts"]
+            conv["translation_blocked_reason"] = s["outcome"]
+        manifest_commit(manifest)
 
-            total_cost += s["cost_usd"]
-            if s["outcome"] == "ok":
-                n_ok += 1
-            else:
-                n_partial += 1
-            warn = ""
-            if s["n_failed"]:   warn += f" · FAILED {s['n_failed']}c"
-            if s["n_refused"]:  warn += f" · REFUSED {s['n_refused']}c"
-            if not s["wrote_translation"] and s["outcome"] == "shrink_blocked":
-                warn += f" · SHRINK_BLOCKED ({s['shrink_ratio']:.0%})"
-            elif not s["wrote_translation"]:
-                warn += " · NOT_WRITTEN"
-            print(f"  [{i:2d}/{len(candidates)}] {k:30s} {s['src_lang']}→en  "
-                  f"{s['n_chunks']}c · ${s['cost_usd']:6.3f} · {s['elapsed_s']:5.1f}s"
-                  + (f" · CACHED {s['n_cached']}c" if s['n_cached'] else "")
-                  + warn)
+        total_cost += s["cost_usd"]
+        if s["outcome"] == "ok":
+            n_ok += 1
+        else:
+            n_partial += 1
+        warn = ""
+        if s["n_failed"]:   warn += f" · FAILED {s['n_failed']}c"
+        if s["n_refused"]:  warn += f" · REFUSED {s['n_refused']}c"
+        if not s["wrote_translation"] and s["outcome"] == "shrink_blocked":
+            warn += f" · SHRINK_BLOCKED ({s['shrink_ratio']:.0%})"
+        elif not s["wrote_translation"]:
+            warn += " · NOT_WRITTEN"
+        print(f"  [{i:2d}/{len(candidates)}] {k:30s} {s['src_lang']}→en  "
+              f"{s['n_chunks']}c · ${s['cost_usd']:6.3f} · {s['elapsed_s']:5.1f}s"
+              + (f" · CACHED {s['n_cached']}c" if s['n_cached'] else "")
+              + warn)
 
     elapsed = time.time() - started
     print()

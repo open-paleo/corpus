@@ -60,6 +60,14 @@ So the data repository clone is optional: without it, the bib comes from
    downloads, PeerJ among them, deposit there); `corpus fetch oa-direct`
    tries the publisher's landing page. All are resume-safe, and fetched
    papers show up in `/intake` as "unconverted".
+
+   For old papers, the optional **Biodiversity Heritage Library** tier finds
+   public-domain scans: `corpus bhl setup` and `corpus bhl index` (a 92 MB
+   download, a 0.55 GB local index, under a minute), then `corpus bhl match`,
+   which prints a table of candidate matches to check, and
+   `corpus bhl fetch --key K` for each one you accept (DOI matches are
+   accepted already). A free [BHL API key](https://www.biodiversitylibrary.org/getapikey.aspx)
+   in `.env` helps it find an article's pages inside a scanned volume.
 3. **Add your own PDFs.** Save a paper you have obtained as
    `pdfs/{citation key}.pdf` (the key from `corpus status --missing`).
 4. **Run intake.** In [Claude Code](https://claude.com/claude-code), `/intake`

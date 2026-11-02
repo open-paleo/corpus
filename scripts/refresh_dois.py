@@ -22,8 +22,12 @@ from __future__ import annotations
 import sys
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.bib import bib_path, parse_bib
+import argparse
 
 def main() -> int:
+    # No options: --help prints this and exits instead of starting a run.
+    argparse.ArgumentParser(description=__doc__,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     bib = parse_bib(bib_path(refresh=True))
     manifest = manifest_load()
 

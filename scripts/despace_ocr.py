@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 from corpus.keys import key_arg
 from corpus.words import WORDS as _WORDS, wordlist_path
+from corpus.io import atomic_write_text
 
 DICT_PATH = wordlist_path()
 WORDS = _WORDS   # read on first use
@@ -219,9 +220,7 @@ def main():
     if args.apply:
         bak = path.with_suffix(path.suffix + ".despace.bak")
         bak.write_text(src, encoding="utf-8")
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(out, encoding="utf-8")
-        tmp.replace(path)
+        atomic_write_text(path, out)
         print(f"  APPLIED (backup: {bak.name})")
 
 

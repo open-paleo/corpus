@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import sys
 import time
 from datetime import datetime, timezone
@@ -46,6 +45,7 @@ from corpus.vision.client import make as make_client
 from corpus.vision.ocr import ocr_one_page, select_prompt
 from corpus.vision.ocr import DEFAULT_CONCURRENCY, DEFAULT_DPI, DEFAULT_MODEL  # noqa: E402
 from corpus.pdf.pages import compact as compact_pages, parse as parse_pages
+from corpus.io import jsonl_append
 
 
 
@@ -67,7 +67,7 @@ def select_backlog(manifest: dict) -> list[str]:
 
 
 async def ocr_one_pdf(client, sem, model: str, dpi: int,
-                      manifest: dict, key: str, log_fh,
+                      manifest: dict, key: str,
                       extra_context: str = "",
                       pages: list[int] | None = None,
                       force: bool = False) -> dict:
@@ -158,8 +158,7 @@ async def ocr_one_pdf(client, sem, model: str, dpi: int,
         "elapsed_s": round(elapsed, 1),
         "model": model, "prompt_id": prompt_id,
     }
-    log_fh.write(json.dumps(summary) + "\n")
-    log_fh.flush()
+    jsonl_append(LOG, summary)
     return summary
 
 
@@ -199,50 +198,49 @@ async def main_async(args) -> int:
     n_ok = n_partial = 0
     total_cost = 0.0
     total_pages = 0
-    with LOG.open("a") as log_fh:
-        for i, k in enumerate(candidates, 1):
-            set_progress("vision", i, len(candidates), note=k)
-            try:
-                s = await ocr_one_pdf(client, sem, args.model, args.dpi,
-                                      manifest, k, log_fh, args.extra_context,
-                                      pages=scoped_pages, force=args.force)
-            except Exception as e:
-                print(f"  ! {k}: {e}")
-                continue
-            # Update manifest atomically per PDF (resume-safe)
-            manifest = manifest_load()
-            entry_conv = manifest[k].setdefault("conversion", {})
-            entry_conv["tool"] = "claude-vision"
-            entry_conv["markdown_path"] = f"markdown/{k}.md"
-            entry_conv["page_count"] = s["n_pages"]
-            entry_conv["converted_at"] = s["ts"]
-            entry_conv["notes"] = (
-                f"vision-OCR via {s['model']}; prompt={s['prompt_id']}; "
-                f"cost=${s['cost_usd']:.3f}; cached_pages={s['n_cached']}"
-                + (f"; SCOPE-LIMITED to PDF pages {s['scoped_pages']}"
-                   if s.get("scoped_pages") else "")
-                + (f"; failed_pages={s['n_failed']}" if s["n_failed"] else "")
-            )
-            entry_conv["vision_input_tokens"] = s["input_tokens"]
-            entry_conv["vision_output_tokens"] = s["output_tokens"]
-            entry_conv["vision_cost_usd"] = s["cost_usd"]
-            # Clear the flag now that we've handled it
-            entry_conv.pop("vision_ocr_needed", None)
-            entry_conv.pop("vision_ocr_reason", None)
-            entry_conv.pop("vision_ocr_flagged_at", None)
-            manifest_commit(manifest)
+    for i, k in enumerate(candidates, 1):
+        set_progress("vision", i, len(candidates), note=k)
+        try:
+            s = await ocr_one_pdf(client, sem, args.model, args.dpi,
+                                  manifest, k, args.extra_context,
+                                  pages=scoped_pages, force=args.force)
+        except Exception as e:
+            print(f"  ! {k}: {e}")
+            continue
+        # Update manifest atomically per PDF (resume-safe)
+        manifest = manifest_load()
+        entry_conv = manifest[k].setdefault("conversion", {})
+        entry_conv["tool"] = "claude-vision"
+        entry_conv["markdown_path"] = f"markdown/{k}.md"
+        entry_conv["page_count"] = s["n_pages"]
+        entry_conv["converted_at"] = s["ts"]
+        entry_conv["notes"] = (
+            f"vision-OCR via {s['model']}; prompt={s['prompt_id']}; "
+            f"cost=${s['cost_usd']:.3f}; cached_pages={s['n_cached']}"
+            + (f"; SCOPE-LIMITED to PDF pages {s['scoped_pages']}"
+               if s.get("scoped_pages") else "")
+            + (f"; failed_pages={s['n_failed']}" if s["n_failed"] else "")
+        )
+        entry_conv["vision_input_tokens"] = s["input_tokens"]
+        entry_conv["vision_output_tokens"] = s["output_tokens"]
+        entry_conv["vision_cost_usd"] = s["cost_usd"]
+        # Clear the flag now that we've handled it
+        entry_conv.pop("vision_ocr_needed", None)
+        entry_conv.pop("vision_ocr_reason", None)
+        entry_conv.pop("vision_ocr_flagged_at", None)
+        manifest_commit(manifest)
 
-            total_cost += s["cost_usd"]
-            total_pages += s["n_pages"]
-            if s["outcome"] == "ok":
-                n_ok += 1
-            else:
-                n_partial += 1
-            print(f"  [{i:3d}/{len(candidates)}] {k:30s} "
-                  f"{s['n_pages']:3d}p · ${s['cost_usd']:6.3f} · "
-                  f"{s['elapsed_s']:5.1f}s"
-                  + (f" · CACHED {s['n_cached']}p" if s['n_cached'] else "")
-                  + (f" · FAILED {s['n_failed']}p" if s['n_failed'] else ""))
+        total_cost += s["cost_usd"]
+        total_pages += s["n_pages"]
+        if s["outcome"] == "ok":
+            n_ok += 1
+        else:
+            n_partial += 1
+        print(f"  [{i:3d}/{len(candidates)}] {k:30s} "
+              f"{s['n_pages']:3d}p · ${s['cost_usd']:6.3f} · "
+              f"{s['elapsed_s']:5.1f}s"
+              + (f" · CACHED {s['n_cached']}p" if s['n_cached'] else "")
+              + (f" · FAILED {s['n_failed']}p" if s['n_failed'] else ""))
 
     clear_progress()
     elapsed = time.time() - started

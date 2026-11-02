@@ -98,4 +98,8 @@ Next steps:
   ./.runtime/venv/bin/corpus status               # what is held and what is missing
   ./.runtime/venv/bin/corpus search 'Hylaeosaurus'
 
+  # Optional: the Biodiversity Heritage Library tier (old, public-domain scans;
+  # 92 MB download, 0.55 GB index):
+  ./.runtime/venv/bin/corpus bhl setup && ./.runtime/venv/bin/corpus bhl index
+
 EOF
