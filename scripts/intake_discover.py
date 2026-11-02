@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: intake discover | what is pending in pdfs/, with path hints
 """
 Discover what's pending intake by reconciling pdfs/ on disk against the
 manifest and `git status pdfs/`. Prints a classification table that the

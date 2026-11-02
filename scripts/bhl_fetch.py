@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl fetch | page images of accepted BHL matches -> pdfs/{key}.pdf
 """
 Fetch BHL papers as page images and stitch them into pdfs/{key}.pdf.
 

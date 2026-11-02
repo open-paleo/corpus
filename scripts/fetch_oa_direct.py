@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: fetch oa-direct | publisher landing page -> citation_pdf_url
 """
 Tier 4 acquisition: open-access PDFs from the publisher's own landing page,
 for papers Unpaywall has no usable copy of.

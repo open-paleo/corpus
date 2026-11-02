@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf images | embedded figures of --key K -> pdf_images/K/
 """
 Rip the embedded raster images (figures, plates, photos) of pdfs/{key}.pdf
 into pdf_images/{key}/, on demand (`corpus pdf images --key K`).

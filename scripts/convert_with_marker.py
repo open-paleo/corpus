@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: convert marker | PDF -> markdown via marker (text layer)
 """
 Step 2a: bulk convert PDFs to Markdown via marker (datalab-to/marker).
 

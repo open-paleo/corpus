@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf append-pages | append pages from a source PDF
 """
 Pre-conversion: append more pages from a source PDF onto an existing
 `pdfs/{key}.pdf`, extending a scope-limited extraction.

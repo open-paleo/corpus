@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: qc textlayer | vision output vs the PDF text layer
 """Audit vision-OCR output against the PDF's own text layer, page by page.
 
 Vision OCR writes fluent text, so a skipped sentence or a plausible wrong

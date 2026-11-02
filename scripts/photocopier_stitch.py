@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf photocopier | stitch phone photos of a volume
 """Stitch source_images/{key}/ page photos into pdfs/{key}.pdf with a
 "photocopier" effect.
 

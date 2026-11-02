@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: clean frontmatter | publisher cover boilerplate
 """Strip journal/aggregator front-matter boilerplate from markdown/*.md.
 
 The target is the "relatively useless" cover/terms text that PDF exporters

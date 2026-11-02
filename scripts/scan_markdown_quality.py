@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: qc scan | PUA garbage, CJK, image-only stubs
 """
 Pre-OCR validation: scan markdown/{key}.md for failure modes that need
 vision-OCR even though marker produced non-empty output.

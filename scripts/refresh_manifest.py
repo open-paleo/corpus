@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: manifest refresh | merge the bib (and genus/clade labels) into the manifest
 """
 Merge-safe manifest refresh from the open-paleo bib.
 

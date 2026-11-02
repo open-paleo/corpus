@@ -229,22 +229,38 @@ def test_repair_eligibility():
 
 
 def test_cli_lists_and_dispatches(capsys):
-    from pathlib import Path
     from corpus import cli
     assert cli.main([]) == 0 and "repair all" in capsys.readouterr().out
     assert cli.main(["nonsense"]) == 2
     assert cli.main(["repair", "nope"]) == 2
+
+
+def test_cli_commands_come_from_script_declarations(tmp_path):
+    from corpus import cli
+    (tmp_path / "a.py").write_text("#!/usr/bin/env python3\n"
+                                   "# corpus-command: convert thing | does a thing\n")
+    (tmp_path / "b.py").write_text("# corpus-command: index | builds it\n")
+    (tmp_path / "c.py").write_text('"""no declaration"""\n')
+    assert cli.commands(tmp_path) == {("convert", "thing"): ("a", "does a thing"),
+                                      ("index",): ("b", "builds it")}
+    (tmp_path / "d.py").write_text("# corpus-command: index | again\n")
+    with pytest.raises(SystemExit):
+        cli.commands(tmp_path)                    # declared twice
+    (tmp_path / "d.py").write_text("# corpus-command: status | shadows a built-in\n")
+    with pytest.raises(SystemExit):
+        cli.commands(tmp_path)
+
+
+def test_every_declared_command_is_unique_and_its_script_exists():
+    from pathlib import Path
+    from corpus import cli
     scripts = Path(__file__).resolve().parents[1] / "scripts"
-    # Every checkout has the core commands; others may be left out.
+    table = cli.commands(scripts)                 # raises on a duplicate
     for words in [("intake", "acquire"), ("convert", "marker"), ("index",), ("search",)]:
-        assert (scripts / f"{cli.COMMANDS[words][0]}.py").is_file(), words
-    listed = cli.usage()
-    for words, (script, _) in cli.COMMANDS.items():
-        assert (" ".join(words) in listed) == (scripts / f"{script}.py").is_file() \
-            or len(words) == 1, words
+        assert words in table, words
+    for script, _ in table.values():
+        assert (scripts / f"{script}.py").is_file()
 
-
-# ---- bib source and corpus status ---------------------------------------
 
 def test_bib_source_auto_order(tmp_path, monkeypatch):
     from corpus import bib

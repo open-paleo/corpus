@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf compress | re-render an oversized scan to JPEG (drops text)
 """Shrink an oversized scanned PDF under a target size by re-rendering each
 page to a downsampled JPEG and rebuilding the document.
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: clean despace | rejoin OCR word splits
 """Mechanical de-spacing of marker OCR word-splits (dictionary-gated).
 
 Scanned pre-2000 reprints run through marker keep the scan's embedded OCR text

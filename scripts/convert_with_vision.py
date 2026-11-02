@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: convert vision | PDF -> markdown via Claude vision OCR
 """
 Step 2 (vision-OCR path): convert backlog PDFs to Markdown via
 Claude Sonnet vision (models.SONNET).

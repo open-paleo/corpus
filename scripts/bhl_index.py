@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl index | build the BHL SQLite index
 """
 Build a SQLite index from BHL TSV dumps so we can match our citations to
 PartIDs locally (no API, no rate limits).
