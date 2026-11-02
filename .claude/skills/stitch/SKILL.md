@@ -3,6 +3,11 @@ name: stitch
 description: Stitch source JPGs/PNGs from source_images/{key}/ into a single pdfs/{key}.pdf — lossless by default, auto re-encode if size approaches the upstream LFS soft limit
 ---
 
+> **This checkout's own steps:** if `.claude/skills/stitch/archive.md` exists, read it
+> first. It is a private repository's layer on this skill (extra steps, local
+> conventions) and is never part of the public repository; where it and this
+> file differ, it wins for this checkout.
+
 Build a single `pdfs/{key}.pdf` from a directory of page-image files (JPGs, PNGs, TIFFs) the user has dropped under `source_images/{key}/`. The standard handoff before `/intake` for keys whose source comes from page photos, library scans, screenshots, etc. (not BHL — those go through `stitch_bhl_pdfs.py`).
 
 ## 1. Confirm the input

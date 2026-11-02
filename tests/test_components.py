@@ -1,8 +1,6 @@
 """Vision cache, HTTP cap, bib parsing, supplementary keys, pdf_text helpers,
 script helpers, and web UI path/escaping regressions."""
 import http.server
-import json
-import sqlite3
 import threading
 
 import pytest
@@ -141,17 +139,6 @@ def test_fused_call_word_and_call_forms():
     assert R.is_unit_exponent("km", "2")
 
 
-@pytest.mark.parametrize("line,expected", [
-    ("- (Closed access) (Buy) smith2001a: Smith; ...", ("smith2001a", ["Closed access", "Buy"])),
-    ("- d'emic2013a: ...", ("d'emic2013a", [])),
-    ("not a bullet", None),
-    ("- (unclosed smith2001a: x", None),
-])
-def test_report_entry_line(line, expected):
-    G = pytest.importorskip("generate_missing_report")   # not in every checkout
-    assert G.parse_entry_line(line) == expected
-
-
 def test_intake_discover_helpers():
     import intake_discover as D
     assert D.parse_cited_pages("501-505") == 5
@@ -159,52 +146,6 @@ def test_intake_discover_helpers():
     assert D.parse_cited_pages("xii") is None
     assert D.split_stem_suffix("foo2015a") == ("foo2015", "a")
     assert D.detect_split_collision("foo2015", {"foo2015a", "foo2015b"})
-
-
-# ---- web UI -------------------------------------------------------------
-
-@pytest.fixture
-def ui(tmp_path, monkeypatch):
-    pytest.importorskip("fastapi")
-    pytest.importorskip("httpx")
-    from fastapi.testclient import TestClient
-    webui = pytest.importorskip("webui")   # not in every checkout
-    md = tmp_path / "markdown"
-    md.mkdir()
-    (md / "o'connor2005a.md").write_text("# Body <img src=x onerror=alert(1)>", encoding="utf-8")
-    (tmp_path / "secret.md").write_text("SECRET", encoding="utf-8")
-    # assembled at runtime so the pre-commit secret check does not flag the test
-    (tmp_path / ".env").write_text("ANTHROPIC_" + "API_KEY=" + "fake-value-for-test", encoding="utf-8")
-    man = tmp_path / "manifest.json"
-    man.write_text(json.dumps({"o'connor2005a": {"citation": {"title": "T"}}}), encoding="utf-8")
-    db = tmp_path / "papers.db"
-    con = sqlite3.connect(db)
-    con.execute("CREATE VIRTUAL TABLE papers USING fts5(citation_key UNINDEXED, title, authors, "
-                "year UNINDEXED, journal, genera, tool UNINDEXED, body)")
-    con.execute("INSERT INTO papers VALUES (?,?,?,?,?,?,?,?)",
-                ("o'connor2005a", "T", "A", "2005", "J", "", "marker",
-                 "air sacs <img src=x onerror=alert(1)> in theropods"))
-    con.commit()
-    con.close()
-    for name, val in (("MD_DIR", md), ("PDF_DIR", tmp_path / "pdfs"), ("IMG_DIR", tmp_path / "img"),
-                      ("MANIFEST", man), ("DB", db)):
-        monkeypatch.setattr(webui, name, val)
-    webui._manifest_cache["mtime"] = None
-    return TestClient(webui.app)
-
-
-@pytest.mark.parametrize("key", ["../secret", "../.env", "..", ".env", "a/b"])
-def test_webui_rejects_traversal(ui, key):
-    r = ui.get("/api/paper", params={"key": key})
-    assert r.status_code in (400, 404) and "SECRET" not in r.text and "fake-value" not in r.text
-
-
-def test_webui_serves_apostrophe_key_and_escapes_snippets(ui):
-    r = ui.get("/api/paper", params={"key": "o'connor2005a"})
-    assert r.status_code == 200 and r.json()["title"] == "T"
-    hits = ui.get("/api/search", params={"q": "theropods"}).json()["hits"]
-    assert hits and "<img" not in hits[0]["snippet"] and "&lt;img" in hits[0]["snippet"]
-    assert "<mark>theropods</mark>" in hits[0]["snippet"]
 
 
 # ---- repair registry and the corpus command ----------------------------
@@ -436,7 +377,7 @@ def test_bhl_helpers():
 
 def test_every_script_parses_its_arguments():
     """A script with no argument parser treats --help as a real run
-    (bhl_index.py rebuilt this archive's index that way, 2026-11-02)."""
+    (a --help check once rebuilt a BHL index that way)."""
     from pathlib import Path
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     bare = []

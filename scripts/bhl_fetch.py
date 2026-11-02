@@ -21,8 +21,8 @@ its key with --key) and no PDF on disk:
      acquisition.source = "bhl" with conversion.vision_ocr_needed set: the
      paper then shows up in /intake (intake_discover: "unconverted") and goes
      to vision OCR like any other scan. BHL's own OCR text is not kept as the
-     paper's markdown: in this archive vision OCR replaced it for 45 of 46
-     BHL papers.
+     paper's markdown: it is too rough (vision OCR replaced it for 45 of the
+     first 46 BHL papers converted).
 
 A PageID's sequence number in its volume (which names the JP2) comes from the
 bucket's OCR file names (ocr/item-{ItemID}/item-{ItemID}-{PageID}-{seq}.txt),

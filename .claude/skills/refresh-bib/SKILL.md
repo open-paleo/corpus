@@ -1,7 +1,12 @@
 ---
 name: refresh-bib
-description: Pull the latest open-paleo bib + refresh manifest; handle key renames/splits, run missing-report, commit + push
+description: Pull the latest open-paleo bib + refresh manifest; handle key renames/splits, check the counts, commit + push
 ---
+
+> **This checkout's own steps:** if `.claude/skills/refresh-bib/archive.md` exists, read it
+> first. It is a private repository's layer on this skill (extra steps, local
+> conventions) and is never part of the public repository; where it and this
+> file differ, it wins for this checkout.
 
 Refresh the local manifest from the upstream `open-paleo/data` bib. Resolves new keys, dropped keys, citation-metadata changes, and the recurring "split key" pattern (one citation key → two new chronologically-suffixed keys).
 
@@ -84,79 +89,57 @@ Real precedents in this repo:
 ### Migration steps for each split where artifacts exist
 
 ```bash
-# Rename artifacts. Use git mv for tracked files, plain mv for gitignored.
-git mv pdfs/{oldkey}.pdf pdfs/{newkey}.pdf
-git mv markdown/{oldkey}.md markdown/{newkey}.md
-mv pdf_images/{oldkey} pdf_images/{newkey}        # gitignored
+# Rename artifacts: git mv where the files are tracked (an archive that
+# commits its content), plain mv otherwise (a public clone ignores pdfs/ and markdown/).
+git mv pdfs/{oldkey}.pdf pdfs/{newkey}.pdf          # or mv
+git mv markdown/{oldkey}.md markdown/{newkey}.md    # or mv
+[ -d pdf_images/{oldkey} ] && mv pdf_images/{oldkey} pdf_images/{newkey}   # gitignored
 [ -d .runtime/cache/vision/{oldkey} ] && \
   mv .runtime/cache/vision/{oldkey} .runtime/cache/vision/{newkey}    # gitignored, only if exists
 ```
 
-Then migrate manifest state via an atomic write:
+Then move the manifest state, through the manifest's lock (`corpus.manifest.update`, never a hand-written `json.dumps`, which also escapes diacritics):
 
-```python
-import json
-from pathlib import Path
+```bash
+./.runtime/venv/bin/python - <<'EOF'
+from corpus.manifest import update
 
-manifest = Path("manifest.json")
-m = json.loads(manifest.read_text())
+def migrate(m):
+    src = m.pop("{oldkey}")                       # truly gone: the bib renamed it
+    dst = m["{newkey}"]
+    dst["acquisition"] = {**src["acquisition"], "pdf_path": "pdfs/{newkey}.pdf"}
+    dst["conversion"] = {**src["conversion"], "markdown_path": "markdown/{newkey}.md"}
 
-src = m["{oldkey}"]
-dst = m["{newkey}"]
-
-acq = dict(src["acquisition"])
-acq["pdf_path"] = "pdfs/{newkey}.pdf"
-dst["acquisition"] = acq
-
-conv = dict(src["conversion"])
-conv["markdown_path"] = "markdown/{newkey}.md"
-dst["conversion"] = conv
-
-del m["{oldkey}"]   # truly gone — bib renamed it
-
-tmp = manifest.with_suffix(".json.tmp")
-tmp.write_text(json.dumps(m, indent=2, sort_keys=True, default=str))
-tmp.replace(manifest)
+update(migrate)
+EOF
 ```
 
-Prune the stale FTS5 row (the indexer only cleans up rows it re-indexes — orphaned rows persist):
-
-```python
-import sqlite3
-conn = sqlite3.connect("index/papers.db")
-conn.execute("DELETE FROM papers WHERE citation_key = ?", ("{oldkey}",))
-conn.commit()
-conn.close()
-```
-
-Re-index to add the new key:
+Re-index: the indexer adds the new key and drops the old key's row itself.
 ```bash
 ./.runtime/venv/bin/python scripts/indexer.py
 ```
 
 ### When the split has no artifact on disk
 
-(e.g., the old key was missing-paper-only) — just delete the orphan from manifest after the refresh; new entries already exist with proper bib metadata. No artifacts to move, no FTS5 row to prune.
+(e.g., the old key was missing-paper-only) — just delete the orphan from the manifest after the refresh (`update(lambda m: m.pop("{oldkey}"))`); new entries already exist with proper bib metadata. No artifacts to move.
 
 ### Concurrent manifest writes
 
 Scripts now write the manifest under a lock and apply only the fields they changed, so a marker batch and a refresh can overlap. Any inline edit must go through `corpus.manifest.update(...)`, not a plain `json` read and write (see `docs/notes/intake-manifest-keys.md`, "Concurrent manifest writes").
 
-## 4. Check the counts (and the missing-papers report, if this checkout has one)
+## 4. Check the counts
 
 ```bash
 ./.runtime/venv/bin/corpus status
-# only in a private archive that keeps MISSING_PAPERS.md:
-[ -f scripts/generate_missing_report.py ] && ./.runtime/venv/bin/python scripts/generate_missing_report.py
 ```
 
-`corpus status` reports bib entries, held and missing; the missing count should move by the delta you expected (new keys minus newly acquired). The report script, where present, round-trips `(Closed access)` annotations into the manifest; verify total count matches the delta you expected (new keys minus newly-acquired). A surprise count change is a smell — investigate before committing.
+`corpus status` reports bib entries, held and missing; the missing count should move by the delta you expected (new keys minus newly acquired). A surprise count change is a smell — investigate before committing.
 
 ## 5. Commit + push
 
-In a fresh public clone the manifest is tracked but nothing else from a refresh is; commit `manifest.json` only if this is your own archive. Use a single descriptive commit. Don't commit unrelated working-tree changes (the user often has pending in-progress edits on `MISSING_PAPERS.md` for `(Closed access)` annotations or curated removals — leave those alone unless they're intentionally part of this round-trip).
+Only in an archive that tracks its manifest and content: a public clone gitignores `manifest.json` and the content folders, so there a refresh leaves nothing to commit. Use a single descriptive commit, staging by explicit path; don't commit unrelated working-tree changes.
 
-Push to `origin/main`. Don't force-push.
+Push to the archive's own remote. Don't force-push.
 
 ## Notes / gotchas
 
