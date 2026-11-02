@@ -20,7 +20,7 @@ name: update-bib
 #   commit (raw.githubusercontent.com caches main for minutes, so fetching
 #   main right after the build can return the previous file):
 #     gh api repos/open-paleo/corpus/dispatches -f event_type=bib-updated \
-#       -F "client_payload[sha]=$SHA"
+#       -f "client_payload[sha]=$SHA"
 # - by hand (Actions > update-bib > Run workflow), fetching main: the fallback
 #   if a dispatch was missed.
 
