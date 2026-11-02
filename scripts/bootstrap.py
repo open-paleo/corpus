@@ -23,11 +23,23 @@ from corpus.manifest import save as manifest_save
 from corpus.config import MANIFEST, RUNTIME
 from corpus.manifest import entry_skeleton
 from corpus.io import atomic_write_text
+import argparse
+from corpus.manifest import load as manifest_load
 
 SUMMARY = RUNTIME / "logs" / "bootstrap_summary.txt"
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--force", action="store_true",
+                    help="overwrite a manifest.json that already has entries")
+    args = ap.parse_args()
+    if MANIFEST.exists() and manifest_load(track=False) and not args.force:
+        print(f"{MANIFEST} already has entries; bootstrap.py would overwrite their "
+              "acquisition and conversion state. Use refresh_manifest.py, or --force.",
+              file=sys.stderr)
+        return 2
     bib_file = bib_path(refresh=True)
     print(f"reading {bib_file} ...")
     bib = parse_bib(bib_file)

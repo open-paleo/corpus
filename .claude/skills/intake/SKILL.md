@@ -18,7 +18,7 @@ Output columns: `key | state (new/untracked/modified/tracked) | in_m | in_bib | 
 - **new** — disk-but-not-acquired, fresh intake.
 - **untracked** — PDF on disk but not in git tracking AND already-acquired in manifest. This is the already-acquired-uncommitted case (often a failed-fetch sentinel such as `unpaywall_no_oa` + a real PDF dropped later). The script flags it with `prior source=...`. Treat as a new acquisition with `previous_source` preserved (the acquire script does this automatically).
 - **modified** — PDF tracked in git but content changed. Replacement re-convert (Path D). Surface to user.
-- **unconverted** — PDF on disk, acquisition already recorded (typically by a fetcher: `corpus fetch unpaywall` / `pmc` / `oa-direct`), but no markdown and not marked citation-only. Convert it by the normal path for its year; **skip §3** for it, since `intake_acquire.py` would overwrite the fetcher's `source` with `manual`. In a public checkout, where `pdfs/` is gitignored, this is the only way fetched papers reach intake.
+- **unconverted** — PDF on disk, acquisition already recorded (typically by a fetcher: `corpus fetch unpaywall` / `pmc` / `oa-direct`), but no markdown and not marked citation-only. Convert it by the normal path for its year; **skip §3** for it, since `intake_acquire.py` would overwrite the fetcher's `source` with `manual`. In a public checkout, where `pdfs/` is gitignored, this is the only way fetched papers reach intake. Papers from `corpus bhl fetch` arrive this way already flagged `vision_ocr_needed` (Path B, §7): check a volume match's page range and any end-of-volume plates against the citation before OCR.
 
 The `path-hint` column suggests:
 - `B` for pre-1900 papers (vision OCR direct).

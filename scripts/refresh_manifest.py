@@ -35,8 +35,12 @@ from corpus.bib import bib_path, citing, parse_bib
 from corpus.config import MANIFEST
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.manifest import entry_skeleton
+import argparse
 
 def main() -> int:
+    # No options: --help prints this and exits instead of starting a run.
+    argparse.ArgumentParser(description=__doc__,
+                            formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     if not MANIFEST.exists():
         print(f"No {MANIFEST.name} yet: building it from the bib.")
 
