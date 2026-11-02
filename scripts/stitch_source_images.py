@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf stitch | source_images/{key}/ -> pdfs/{key}.pdf
 """
 Stitch user-provided source images (JPG/JPEG/PNG/TIFF/JP2/HEIC/HEIF) for a
 citation key into a single PDF at pdfs/{key}.pdf.

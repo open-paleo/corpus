@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: manifest refresh-dois | DOI-only refresh from the bib
 """
 Surgical DOI refresh: pull new DOIs from references.bib into manifest.json
 without disturbing acquisition/conversion state.

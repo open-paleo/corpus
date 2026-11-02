@@ -99,6 +99,7 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus pdf compress` | `compress_pdf.py` | Shrink an oversized scan (**drops the text layer**) |
 | `corpus pdf stitch` | `stitch_source_images.py` | `source_images/{key}/` → `pdfs/{key}.pdf` |
 | `corpus pdf photocopier` | `photocopier_stitch.py` | Same, flat-field-normalising phone photos of a volume |
+| `corpus pdf images` | `extract_pdf_images.py` | Embedded figures of `--key K` → `pdf_images/K/` (on demand, gitignored; `/extract-images`) |
 | `corpus convert marker` | `convert_with_marker.py` | PDF → Markdown from the text layer (`--workers 1`) |
 | `corpus convert vision` | `convert_with_vision.py` | PDF → Markdown via Claude vision OCR (per-page cache) |
 | `corpus convert recover` | `recover_blocked_pages.py` | Re-OCR pages the content filter blocked, by halves |

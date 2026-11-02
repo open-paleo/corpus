@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl stitch | stitch BHL page images into PDFs
 """
 Stitch the article-level JP2s for each BHL key into a single PDF at
 pdfs/{key}.pdf. corpus.pdf.build (img2pdf) embeds the JP2 stream unchanged, one

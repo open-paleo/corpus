@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: index | build/refresh the FTS5 search index
 """
 Step 3: build (or refresh) the FTS5 search index over markdown/{key}.md.
 

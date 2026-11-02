@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: fetch unpaywall-by-doi | Unpaywall for a key/DOI list
 """
 Tier 1 acquisition by explicit DOI, for keys not in the manifest yet.
 

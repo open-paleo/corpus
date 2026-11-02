@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: fetch pmc | PMC Open Access subset (NCBI dataset) by DOI
 """
 Acquisition from the PMC Open Access subset (NCBI's PMC Article Dataset).
 

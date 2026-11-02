@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: intake qc | bytes-per-page triage of a converted batch
 """
 Bytes-per-page sanity check on a batch of just-converted keys, plus
 flagging of likely image-only stubs and T&F cover-stub patterns. Run

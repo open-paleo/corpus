@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl match | match missing keys to BHL articles or volumes (prints a review table)
 """
 Match manifest entries → BHL PartIDs using the local SQLite index.
 

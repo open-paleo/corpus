@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: search | query the search index
 """
 Query CLI over the FTS5 index built by indexer.py.
 

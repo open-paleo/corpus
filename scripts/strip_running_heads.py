@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: clean running-heads | repeated per-page heads and feet
 """Remove per-page running heads/feet that survive vision OCR.
 
 Why this exists

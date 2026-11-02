@@ -5,90 +5,71 @@
     corpus repair all [--apply]     every text-layer repair, one pass per paper
     corpus repair dash --key K      one repair (dash, symbols, accents, diaeresis,
                                     ref_links, fused_calls, control_glyphs)
-    corpus intake acquire K ...     and the other named commands below
+    corpus intake acquire K ...     and the other commands the scripts declare
     corpus run SCRIPT [args]        any script in scripts/, by file name
 
 Everything after the command name is passed to it unchanged, so
-`corpus convert marker --help` shows that script's own options. The named
-commands run the scripts in ROOT/scripts/ (the files the docs and skills
-name); the repairs run from the package. A checkout need not hold every
-script (the public repository leaves some out): commands whose script is
-missing are not listed and say so when run.
+`corpus convert marker --help` shows that script's own options.
+
+A script becomes a command by declaring it in a comment line near its top:
+
+    # corpus-command: convert marker | PDF -> markdown via marker (text layer)
+
+(one or two words, then "|" and a one-line summary). The command list is read
+from the scripts present in ROOT/scripts/, without importing them, so a
+checkout lists exactly what it can run, and a private repository built on this
+one adds commands by adding scripts, without editing this file. `status`,
+`repair` and `run` are built in.
 """
 from __future__ import annotations
 
+import re
 import runpy
 import sys
+from pathlib import Path
 
-# (group, name) -> script file name in scripts/, with a one-line summary.
-COMMANDS: dict[tuple[str, ...], tuple[str, str]] = {
-    ("intake", "discover"): ("intake_discover", "what is pending in pdfs/, with path hints"),
-    ("intake", "acquire"): ("intake_acquire", "record dropped PDFs as acquired"),
-    ("intake", "qc"): ("intake_qc", "bytes-per-page triage of a converted batch"),
-    ("convert", "marker"): ("convert_with_marker", "PDF -> markdown via marker (text layer)"),
-    ("convert", "vision"): ("convert_with_vision", "PDF -> markdown via Claude vision OCR"),
-    ("convert", "spread"): ("ocr_spread_pdf", "vision OCR of two-page spreads"),
-    ("convert", "poster"): ("tile_ocr_poster", "vision OCR of a single-canvas poster"),
-    ("convert", "doc"): ("convert_doc_to_markdown", ".doc/.docx -> markdown"),
-    ("convert", "bhl"): ("convert_bhl_to_markdown", "BHL page images -> markdown"),
-    ("convert", "translate"): ("translate_markdown", "translate non-English markdown"),
-    ("convert", "recover"): ("recover_blocked_pages", "re-OCR content-filter-blocked pages"),
-    ("convert", "repair-truncated"): ("repair_truncated_pages", "re-OCR pages cut at the old token cap"),
-    ("fetch", "unpaywall"): ("fetch_unpaywall", "tier 1: open-access PDFs via Unpaywall"),
-    ("fetch", "unpaywall-by-doi"): ("fetch_unpaywall_by_doi", "Unpaywall for a key/DOI list"),
-    ("fetch", "retry-unpaywall"): ("retry_unpaywall", "retry tier-1 download failures"),
-    ("fetch", "oa-direct"): ("fetch_oa_direct", "tier 4: DOI landing page -> citation_pdf_url"),
-    ("fetch", "pmc"): ("fetch_pmc_oa", "PMC Open Access subset (NCBI dataset) by DOI"),
-    ("bhl", "setup"): ("bhl_setup", "download the BHL data dumps"),
-    ("bhl", "index"): ("bhl_index", "build the BHL SQLite index"),
-    ("bhl", "match"): ("bhl_match", "match citations to BHL parts"),
-    ("bhl", "item-match"): ("bhl_item_match", "item-level BHL matching"),
-    ("bhl", "fetch"): ("bhl_fetch", "fetch BHL OCR and page images"),
-    ("bhl", "stitch"): ("stitch_bhl_pdfs", "stitch BHL page images into PDFs"),
-    ("pdf", "extract-pages"): ("extract_pdf_pages", "cut a PDF down to a page range, in place"),
-    ("pdf", "append-pages"): ("append_pdf_pages", "append pages from a source PDF"),
-    ("pdf", "compress"): ("compress_pdf", "re-render an oversized scan to JPEG (drops text)"),
-    ("pdf", "stitch"): ("stitch_source_images", "source_images/{key}/ -> pdfs/{key}.pdf"),
-    ("pdf", "photocopier"): ("photocopier_stitch", "stitch phone photos of a volume"),
-    ("pdf", "images"): ("extract_pdf_images", "rip embedded images into pdf_images/"),
-    ("qc", "scan"): ("scan_markdown_quality", "PUA garbage, CJK, image-only stubs"),
-    ("qc", "languages"): ("audit_languages", "non-English bodies (TRANSLATION_AUDIT.md)"),
-    ("qc", "spillover"): ("scan_spillover", "markdown holding neighbouring articles"),
-    ("qc", "textlayer"): ("audit_vision_textlayer", "vision output vs the PDF text layer"),
-    ("qc", "vision"): ("eval_vision_quality", "heuristic flags on vision markdown"),
-    ("clean", "frontmatter"): ("strip_frontmatter", "publisher cover boilerplate"),
-    ("clean", "running-heads"): ("strip_running_heads", "repeated per-page heads and feet"),
-    ("clean", "despace"): ("despace_ocr", "rejoin OCR word splits"),
-    ("clean", "gesperrt"): ("despace_gesperrt", "rejoin letterspaced emphasis"),
-    ("clean", "ligatures"): ("fix_dropped_ligatures", "restore f- and Th-ligatures a text layer dropped"),
-    ("manifest", "refresh"): ("refresh_manifest", "merge the bib and YAMLs into the manifest"),
-    ("manifest", "refresh-dois"): ("refresh_dois", "DOI-only refresh from the bib"),
-    ("report", "missing"): ("generate_missing_report", "regenerate MISSING_PAPERS.md"),
-    ("index",): ("indexer", "build/refresh the FTS5 search index"),
-    ("search",): ("search", "query the search index"),
-    ("web",): ("webui", "browse the index in a browser (127.0.0.1)"),
-}
+DECLARATION = re.compile(r"^# corpus-command:\s*([a-z][a-z0-9-]*(?: [a-z][a-z0-9-]*)?)"
+                         r"\s*\|\s*(.+?)\s*$", re.MULTILINE)
+BUILT_IN = {"status", "repair", "run", "help", "list"}
+
+
+def commands(scripts: Path | None = None) -> dict[tuple[str, ...], tuple[str, str]]:
+    """{(group, name) or (name,): (script stem, summary)} declared by the
+    scripts in `scripts` (default ROOT/scripts). Two scripts declaring the
+    same command, or one shadowing a built-in, is an error."""
+    if scripts is None:
+        from corpus.config import ROOT
+        scripts = ROOT / "scripts"
+    found: dict[tuple[str, ...], tuple[str, str]] = {}
+    for path in sorted(Path(scripts).glob("*.py")):
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            head = fh.read(4096)
+        m = DECLARATION.search(head)
+        if not m:
+            continue
+        words = tuple(m.group(1).split())
+        if words[0] in BUILT_IN:
+            raise SystemExit(f"corpus: {path.name} declares built-in command {words[0]!r}")
+        if words in found:
+            raise SystemExit(f"corpus: {' '.join(words)!r} declared by both "
+                             f"{found[words][0]}.py and {path.name}")
+        found[words] = (path.stem, m.group(2))
+    return found
+
 
 REPAIR_NAMES = ["dash", "symbols", "accents", "diaeresis", "ref_links", "fused_calls",
                 "control_glyphs"]
 
 
-def _available(script: str) -> bool:
-    from corpus.config import ROOT
-    return (ROOT / "scripts" / f"{script}.py").is_file()
-
-
 def usage() -> str:
-    lines = [__doc__.split("\n\n")[0], "", "Commands:",
-             "  status                held / converted / indexed / missing counts (--missing lists)",
-             "  repair all            every text-layer repair, one pass per paper"]
-    lines += [f"  repair {n:<14} one repair" for n in REPAIR_NAMES]
-    for words, (script, summary) in COMMANDS.items():
-        if not _available(script):
-            continue
-        lines.append(f"  {' '.join(words):<21} {summary}")
-    lines.append("  run SCRIPT            any script in scripts/ (file name, .py optional)")
-    return "\n".join(lines)
+    rows = [("status", "held / converted / indexed / missing counts (--missing lists)"),
+            ("repair all", "every text-layer repair, one pass per paper")]
+    rows += [(f"repair {n}", "one repair") for n in REPAIR_NAMES]
+    rows += [(" ".join(words), summary) for words, (_, summary) in sorted(commands().items())]
+    rows.append(("run SCRIPT", "any script in scripts/ (file name, .py optional)"))
+    width = max(len(name) for name, _ in rows)
+    return "\n".join([__doc__.split("\n\n")[0], "", "Commands:"]
+                     + [f"  {name:<{width}}  {summary}" for name, summary in rows])
 
 
 def run_script(name: str, args: list[str]) -> int:
@@ -140,15 +121,11 @@ def main(argv: list[str] | None = None) -> int:
             print("usage: corpus run SCRIPT [args]", file=sys.stderr)
             return 2
         return run_script(argv[1], argv[2:])
+    table = commands()
     for n in (2, 1):
         words = tuple(argv[:n])
-        if words in COMMANDS:
-            script = COMMANDS[words][0]
-            if not _available(script):
-                print(f"corpus: {' '.join(words)} needs scripts/{script}.py, which this "
-                      "checkout does not include", file=sys.stderr)
-                return 2
-            return run_script(script, argv[n:])
+        if words in table:
+            return run_script(table[words][0], argv[n:])
     print(f"corpus: unknown command {' '.join(argv[:2])!r}\n\n{usage()}", file=sys.stderr)
     return 2
 

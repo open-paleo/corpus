@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: intake acquire | record dropped PDFs as acquired
 """
 Atomically write/update manifest acquisition entries for one or more
 PDFs that the user has dropped into pdfs/. Replaces the inline Python

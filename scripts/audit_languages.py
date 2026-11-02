@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: qc languages | non-English bodies (TRANSLATION_AUDIT.md)
 """
 Scan markdown/{key}.md for non-English content. Flags papers that may
 benefit from translate-on-OCR (or post-hoc translation cleanup).

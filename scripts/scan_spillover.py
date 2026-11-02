@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: qc spillover | markdown holding neighbouring articles
 """Flag markdown that holds more than one work (neighbouring-article spillover).
 
 A PDF cut out of a larger volume carries whatever else was printed on its

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl setup | download the BHL data dumps
 """
 Step 0 of BHL Tier 2 — pull the 8 small TSV dumps from BHL's open S3 bucket.
 

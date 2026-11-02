@@ -153,7 +153,7 @@ EOF
 
 Marker takes ~30-60s/PDF on Apple Silicon; budget accordingly. **`--workers 1` is mandatory** — workers≥2 hits an MPS contention bug.
 
-**Embedded raster-image extraction is no longer part of intake.** Months of intakes never used the extracted figures, and they cost ~7 MB/key on disk. If you ever need the figures from a specific paper, run `/extract-images {key}` on demand where that skill is installed — it rips them into `pdf_images/{key}/`.
+**Embedded raster-image extraction is not part of intake**: the figures are rarely needed and cost several MB per paper. If you need the figures from a specific paper, run `/extract-images {key}` (`corpus pdf images --key {key}`) on demand; it rips them into `pdf_images/{key}/`.
 
 ### Manifest edits while marker runs
 

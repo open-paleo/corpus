@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: convert recover | re-OCR content-filter-blocked pages
 """
 Recover individual pages where convert_with_vision.py hit a content-filter
 block. See docs/notes/conversion.md ("Content-filter blocks"): the trigger is

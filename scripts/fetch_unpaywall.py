@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: fetch unpaywall | open-access PDFs by DOI via Unpaywall
 """
 Tier 1 acquisition: Unpaywall.
 

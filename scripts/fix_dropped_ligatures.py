@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: clean ligatures | restore f- and Th-ligatures a text layer dropped
 """Restore f-ligatures dropped by a PDF's own text layer (corpus-gated).
 
 Many born-digital publisher PDFs (Elsevier is the worst offender; Springer,

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: convert translate | translate non-English markdown
 """
 Translate non-English markdown bodies to English in-place.
 

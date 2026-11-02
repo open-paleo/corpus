@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: pdf extract-pages | cut a PDF down to a page range, in place
 """
 Extract specific pages from pdfs/{key}.pdf, replacing the file in place
 with the extracted subset. Use to scope-limit a whole-volume PDF down

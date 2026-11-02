@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# corpus-command: bhl item-match | retry BHL volume matching on its own
 """
 Item-level matcher: for entries we couldn't pin to a BHL Part, find a unique
 BHL Item (whole volume) by journal name + year, and save it to the manifest.
