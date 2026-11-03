@@ -71,13 +71,12 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-from corpus.config import ROOT as ARCHIVE, MD_DIR
+from corpus.config import MD_DIR
 from corpus.keys import key_arg
 from corpus.words import WORDS as _WORDS, wordlist_path
-from corpus.io import atomic_write_text
 from corpus.pages import write_markdown
+from corpus.lexicon import document_frequencies
 
-CACHE = ARCHIVE / ".runtime" / "cache" / "ligature_lexicon.json"
 
 DICT_PATH = wordlist_path()
 WORDS = _WORDS   # read on first use
@@ -216,41 +215,9 @@ def loose_word(t: str) -> bool:
 
 # --- clean-corpus lexicon -------------------------------------------------
 
-def corpus_signature(md_dir: Path) -> str:
-    files = sorted(md_dir.glob("*.md"))
-    total = sum(p.stat().st_size for p in files)
-    return f"{len(files)}:{total}"
-
-
-def build_lexicon(md_dir: Path) -> dict[str, int]:
-    """Document frequency of each token across files with NO break signature."""
-    df: Counter[str] = Counter()
-    clean = broken = 0
-    for p in sorted(md_dir.glob("*.md")):
-        text = p.read_text(encoding="utf-8", errors="replace")
-        if TELLS.search(text):
-            broken += 1
-            continue
-        clean += 1
-        df.update(set(w.lower() for w in WORD_RE.findall(text)))
-    print(f"  lexicon: {clean} clean files, {broken} broken, "
-          f"{len(df)} distinct tokens", file=sys.stderr)
-    return dict(df)
-
-
 def load_lexicon(md_dir: Path, rebuild: bool = False) -> dict[str, int]:
-    sig = corpus_signature(md_dir)
-    if not rebuild and CACHE.exists():
-        try:
-            blob = json.loads(CACHE.read_text(encoding="utf-8"))
-            if blob.get("signature") == sig:
-                return blob["df"]
-        except (ValueError, KeyError):
-            pass
-    df = build_lexicon(md_dir)
-    CACHE.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(CACHE, json.dumps({"signature": sig, "df": df}))
-    return df
+    """Document frequency of each word across files with no dropped-ligature tell."""
+    return document_frequencies(md_dir, "ligature_lexicon", TELLS.search, WORD_RE, rebuild=rebuild)
 
 
 class WordFreqLexicon:

@@ -112,6 +112,12 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus clean frontmatter` | `strip_frontmatter.py` | Publisher cover boilerplate |
 | `corpus clean running-heads` | `strip_running_heads.py` | Repeated page heads and feet (**review the list**) |
 | `corpus clean despace` | `despace_ocr.py` | Rejoin OCR word splits (removes spaces only) |
+| `corpus clean ligature-codes` | `fix_ligature_substitutions.py` | fi/fl ligatures and en dashes a text layer reads as ®, ¯, ± (Nature Adv* fonts) |
+| `corpus clean transposed-accents` | `fix_transposed_accents.py` | Accents carried as a separate mark beside their letter (`Neuque´n`, `Mus´eum`) |
+| `corpus clean diacritics` | `fold_diacritics.py` | Spacing accents after their letter (`Osmo´lska`); refuses rough scans |
+| `corpus clean glued-words` | `resplit_glued_words.py` | Spaces a text layer never emitted (`KaiparowitsFormation`) |
+| `corpus clean gesperrt` | `despace_gesperrt.py` | German letterspaced emphasis (`H o l o t y p e`) |
+| `corpus clean coordinates` | `repair_coordinate_glyphs.py` | Verified °/′/″ repairs from `repairs/coordinate_glyphs.json`; `--audit` finds suspects |
 | `corpus clean ligatures` | `fix_dropped_ligatures.py` | Restore f-/Th-ligatures the text layer dropped (`diferent`, `Te`); word frequencies from the corpus once it has 500 clean papers, from `wordfreq` before that |
 | | `untable_gutter_manuscript.py`, `strip_pdf_gutter_numbers.py` | Accepted-manuscript line-number gutters |
 | | `compact_padded_tables.py` | Whitespace-padded table cells |
