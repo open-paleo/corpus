@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -103,8 +104,15 @@ def test_strip_running_heads_keeps_markers(tmp_path):
     assert numbers(p.read_text(encoding="utf-8")) == numbers(sample())
 
 
-def test_despace_keeps_markers():
+def test_despace_keeps_markers(tmp_path, monkeypatch):
+    # a word list of the sample's own words, so the test needs no system dictionary
+    words = tmp_path / "words"
+    words.write_text("\n".join({w.lower() for w in re.findall(r"[A-Za-z]+", sample())}
+                               - {"numerou"} | {"numerous"}), encoding="utf-8")
+    monkeypatch.setenv("CORPUS_WORDLIST", str(words))
     import despace_ocr
+    from corpus.words import WORDS
+    monkeypatch.setattr(WORDS, "_set", None, raising=False)
     out = despace_ocr.despace(sample())[0]
     assert "numerous" in out and numbers(out) == numbers(sample())
 
@@ -119,6 +127,7 @@ def test_gutter_number_strippers_ignore_markers():
 
 
 def test_translation_never_sends_markers():
+    pytest.importorskip("langdetect")             # translate_markdown needs the `lang` extra
     import translate_markdown as tm
     text = sample()
     chunks, plan = tm.chunk_plan(text, 120)
