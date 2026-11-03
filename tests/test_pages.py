@@ -127,8 +127,7 @@ def test_gutter_number_strippers_ignore_markers():
 
 
 def test_translation_never_sends_markers():
-    pytest.importorskip("langdetect")             # translate_markdown needs the `lang` extra
-    import translate_markdown as tm
+    from corpus import translate as tm
     text = sample()
     chunks, plan = tm.chunk_plan(text, 120)
     assert not any("<!-- page" in c for c in chunks)

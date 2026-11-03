@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import re
 import sys
 import time
@@ -49,7 +48,6 @@ from corpus.config import MD_DIR, RUNTIME
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 DetectorFactory.seed = 0
 
-CACHE_DIR = RUNTIME / "cache" / "translation"
 LOG = RUNTIME / "logs" / "translation.jsonl"
 
 from corpus.models import PRICES, SONNET, cache_model_ok, request_extras
@@ -60,17 +58,14 @@ from corpus.config import require_env
 from corpus.vision.client import make as make_client
 from corpus.io import atomic_write_text
 from corpus.io import jsonl_append
-from corpus.pages import is_empty as md_is_empty, segments, strip as strip_markers
+from corpus.pages import is_empty as md_is_empty, strip as strip_markers
+from corpus.translate import (CACHE_DIR, CJK_LANGS, MAX_CHARS_PER_CHUNK, MAX_CHARS_PER_CHUNK_CJK,
+                              assemble, chunk_cache_key, chunk_plan)
 from corpus.pages import write_markdown
 # Sonnet for every language. Haiku 5.5 left most paragraphs of a German paper
 # untranslated while reporting end_turn, and swapped printed taxon names
 # (docs/notes/conversion.md, "Model choice").
 DEFAULT_MODEL = SONNET
-MAX_CHARS_PER_CHUNK = 18000  # ~4.5k input tokens
-# CJK sources tokenize densely and expand ~1.3x in characters on the way to
-# English, so an 18k-char Korean/Chinese chunk can exceed MAX_OUTPUT_TOKENS
-# and get silently truncated. Give them a smaller chunk.
-MAX_CHARS_PER_CHUNK_CJK = 9000
 MAX_OUTPUT_TOKENS = 16000
 MIN_SPLIT_CHARS = 500  # below this, stop halving and accept what we get
 
@@ -97,7 +92,6 @@ TRUSTED_LANGS = {"en", "es", "fr", "de", "it", "pt", "ja", "ru", "zh-cn", "zh-tw
 # rarer names (大地龙 as "*Dilong* (?)" where Sonnet gives *Tatisaurus*). Sonnet
 # is the default for every language, so the upgrade below fires only if the
 # default changes; an explicit --model is used as given.
-CJK_LANGS = {"zh", "zh-cn", "zh-tw", "ja", "ko"}
 CJK_MODEL = SONNET
 CJK_TAXON_RULE = (
     "\n- IMPORTANT (CJK source): render every taxonomic name as its established "
@@ -178,26 +172,7 @@ def detect_source_lang(text: str) -> str | None:
     return lang if pct >= 0.15 else None
 
 
-def chunk_markdown(text: str, max_chars: int = MAX_CHARS_PER_CHUNK) -> list[str]:
-    """Split markdown into chunks at paragraph boundaries, never exceeding max_chars."""
-    if len(text) <= max_chars:
-        return [text]
-    paras = text.split("\n\n")
-    chunks = []
-    cur = []
-    cur_len = 0
-    for p in paras:
-        plen = len(p) + 2
-        if cur and cur_len + plen > max_chars:
-            chunks.append("\n\n".join(cur))
-            cur = [p]
-            cur_len = plen
-        else:
-            cur.append(p)
-            cur_len += plen
-    if cur:
-        chunks.append("\n\n".join(cur))
-    return chunks
+
 
 
 INVENTED_HEADING_RE = re.compile(
@@ -205,31 +180,6 @@ INVENTED_HEADING_RE = re.compile(
     r"|translat(?:ion|ed text)(?: from \w+(?: to \w+)?)?|begins translation"
     r"|translated paleontology text|[\w ]*paleontology text[^\n]*translat[^\n]*)\**\]?:?\s*",
     re.I)
-
-
-def chunk_plan(body: str, max_chars: int) -> tuple[list[str], list[tuple[str, str | int]]]:
-    """The chunks to translate, and the order to reassemble them with the page markers.
-
-    Page markers never go to the model, which could drop or alter them: the
-    body is cut at its markers, each piece chunked, and the plan lists
-    ("marker", line) and ("chunk", index) in document order. Without markers
-    the chunks are exactly chunk_markdown's, so existing chunk caches stay valid.
-    """
-    if segments(body) == [("", body.strip("\n"))]:
-        chunks = chunk_markdown(body, max_chars)
-        return chunks, [("chunk", i) for i in range(len(chunks))]
-    chunks, plan = [], []
-    for opener, seg in segments(body):
-        if opener:
-            plan.append(("marker", opener))
-        for c in (chunk_markdown(seg, max_chars) if seg.strip() else []):
-            plan.append(("chunk", len(chunks)))
-            chunks.append(c)
-    return chunks, plan
-
-
-def assemble(plan: list[tuple[str, str | int]], pieces: dict[int, str]) -> str:
-    return "\n\n".join(v if kind == "marker" else pieces[v] for kind, v in plan).strip() + "\n"
 
 
 def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
@@ -293,10 +243,6 @@ def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
 # stop_reason end_turn). The whole-document 50% guard cannot see a loss that
 # small in a long document.
 MIN_CHUNK_RATIO = 0.8
-
-
-def chunk_cache_key(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def _is_stale_cache(cached: dict) -> bool:
