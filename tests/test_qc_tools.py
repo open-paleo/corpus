@@ -101,6 +101,9 @@ def test_translation_audit_flags_a_short_chunk(tmp_path):
     for i, (chunk, text) in enumerate(zip(chunks, translated)):
         (cache / f"chunk-{i:04d}.json").write_text(json.dumps(
             {"hash": chunk_cache_key(chunk), "translated": text, "stop_reason": "end_turn"}))
+    # a rejected first attempt the translator kept after retrying a chunk: not measured
+    (cache / "chunk-0001.short.json").write_text(json.dumps(
+        {"hash": chunk_cache_key(chunks[1]), "translated": "x", "stop_reason": "end_turn"}))
     (tmp_path / "manifest.json").write_text(json.dumps(
         {"ab2000a": {"conversion": {"translated_from": "es"}}}))
     result = run("audit_translation_completeness.py", tmp_path, check=False)
