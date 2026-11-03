@@ -24,3 +24,15 @@ jobs:
         run: ruff check scripts src tests
       - name: Tests
         run: pytest -q
+      # The web app's browser code (src/corpus/web/static/): the open-paleo
+      # ESLint rules and a JSDoc type check. Node is a development tool only.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install web tools
+        run: npm ci
+      - name: Lint web code
+        run: npm run lint
+      - name: Type-check web code
+        run: npm run typecheck

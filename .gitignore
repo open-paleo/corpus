@@ -48,3 +48,6 @@ TRANSLATION_AUDIT.md
 # repository. (A private archive that tracks it is unaffected: ignore rules
 # do not apply to files already tracked.)
 manifest.json
+
+# npm dev tools for the web app's browser code (package.json)
+node_modules/

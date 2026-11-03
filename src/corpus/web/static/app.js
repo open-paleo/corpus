@@ -1,324 +1,908 @@
-// Search, results and the reader. Everything shown is in the URL, so a search
-// or an open paper can be bookmarked and the Back button works.
-import { PdfView } from "/static/pdfview.js";
+/**
+ * The corpus web app: search, results and the reader. Everything shown is in the URL, so a
+ * search or an open paper can be bookmarked and the Back button works.
+ */
 
-const $ = (id) => document.getElementById(id);
-const form = $("search"), results = $("results"), reader = $("reader"), pdfPane = $("pdf");
-const FIELDS = ["q", "genus", "clade", "from", "to", "tool", "sort"];
-const FLAGS = ["syntax", "translated", "supplements"];
-const pdf = new PdfView(pdfPane, (n) => onPdfPage(n));
-let shown = { search: null, paper: null };
+import { PdfView } from "./pdfview.js";
 
-const state = () => new URLSearchParams(location.search);
+/**
+ * @typedef {object} Hit
+ * @property {string} key
+ * @property {string} year
+ * @property {string} title
+ * @property {string} authors
+ * @property {string} venue
+ * @property {string} genera
+ * @property {string} clades
+ * @property {string} tool
+ * @property {boolean} translated
+ * @property {string} snippet - HTML, escaped by the server, with <mark> around the matches.
+ */
 
-function go(params, replace = false) {
-  for (const [k, v] of [...params]) if (!v || (k === "sort" && v === "relevance")) params.delete(k);
-  const url = params.toString() ? `?${params}` : location.pathname;
-  history[replace ? "replaceState" : "pushState"](null, "", url);
-  apply();
-}
+/**
+ * @typedef {object} SearchResponse
+ * @property {number} total
+ * @property {number} page
+ * @property {number} per_page
+ * @property {Array<Hit>} hits
+ */
 
-function formParams() {
-  const p = new URLSearchParams();
-  for (const k of FIELDS) p.set(k, form.elements[k].value.trim());
-  for (const k of FLAGS) if (form.elements[k].checked) p.set(k, "1");
-  return p;
-}
+/**
+ * @typedef {object} Paper
+ * @property {string} key
+ * @property {string | null} parent - The main paper's key, for a supplement.
+ * @property {string | null} name - The supplement's name.
+ * @property {string} title
+ * @property {string} authors
+ * @property {string} year
+ * @property {string} venue
+ * @property {string} doi
+ * @property {Array<string>} genera
+ * @property {Array<string>} clades
+ * @property {object} conversion
+ * @property {Array<{ key: string, name: string }>} supplements
+ * @property {boolean} has_pdf
+ * @property {boolean} has_original
+ * @property {"text" | "original"} version
+ * @property {string} html - Rendered and sanitised by the server.
+ */
 
-function fillForm(p) {
-  for (const k of FIELDS) form.elements[k].value = p.get(k) || (k === "sort" ? "relevance" : "");
-  for (const k of FLAGS) form.elements[k].checked = p.get(k) === "1";
-  const open = ["genus", "clade", "from", "to", "tool", "translated", "supplements", "syntax"]
-    .some((k) => p.get(k)) || (p.get("sort") || "relevance") !== "relevance";
-  if (open) showFilters(true);
-}
+/**
+ * @typedef {object} Facets
+ * @property {number} papers
+ * @property {Array<string>} genera
+ * @property {Array<string>} clades
+ * @property {Array<string>} tools
+ * @property {[number | null, number | null]} years
+ */
 
-function showFilters(open) {
-  $("filters").hidden = !open;
-  $("filters-toggle").setAttribute("aria-expanded", String(open));
-}
+const textFields = ["q", "genus", "clade", "from", "to", "tool", "sort"];
+const checkboxFields = ["syntax", "translated", "supplements"];
+const filterFields = ["genus", "clade", "from", "to", "tool", "translated", "supplements", "syntax"];
+const introduction = "Search the full text of every converted paper, or filter by the genus or clade whose data cites it.";
 
-async function apply() {
-  const p = state();
-  fillForm(p);
-  const search = new URLSearchParams(p);
-  for (const k of ["key", "v", "pdf", "pg"]) search.delete(k);
-  const searchKey = search.toString();
-  if (searchKey !== shown.search) { shown.search = searchKey; await runSearch(search); }
-  else markCurrent(p.get("key"));
-  const paperKey = [p.get("key"), p.get("v")].join("|");
-  if (paperKey !== shown.paper) { shown.paper = paperKey; await openPaper(p); }
-  showPdf(p);
-}
+/**
+ * Finds a required element in the page.
+ *
+ * @template {HTMLElement} T
+ * @param {string} id - Element id.
+ * @param {new () => T} type - The element's class.
+ * @returns {T} The element.
+ */
+function getElement(id, type)
+{
+    const element = document.getElementById(id);
 
-async function runSearch(search) {
-  if (!search.toString() || [...search.keys()].every((k) => k === "page")) {
-    results.replaceChildren(para("empty", "Search the full text of every converted paper, or filter by the genus or clade whose data cites it."));
-    return;
-  }
-  results.replaceChildren(para("empty", "Searching…"));
-  const res = await fetch(`/api/search?${search}`);
-  const data = await res.json();
-  if (!res.ok) { results.replaceChildren(para("error", data.detail || "The search failed.")); return; }
-  const page = data.page, pages = Math.max(1, Math.ceil(data.total / data.per_page));
-  const head = para("count", data.total === 1 ? "1 paper" : `${data.total.toLocaleString()} papers`);
-  const list = document.createElement("div");
-  for (const h of data.hits) list.append(hitCard(h));
-  results.replaceChildren(head, list);
-  if (pages > 1) results.append(pager(page, pages));
-  if (!data.hits.length) results.append(para("empty", "No matches."));
-  markCurrent(state().get("key"));
-  results.scrollTop = 0;
-}
-
-function hitCard(h) {
-  const p = state(); p.set("key", h.key); p.delete("v"); p.delete("pg");
-  const a = Object.assign(document.createElement("a"), { className: "hit", href: `?${p}` });
-  a.dataset.key = h.key;
-  a.append(
-    para("key", [h.key, h.year || "n.d.", h.tool || "", h.translated ? "translated" : ""].filter(Boolean).join(" · ")),
-    para("title", h.title || "(no title)"),
-    para("meta", [h.authors, h.venue].filter(Boolean).join(" — ")));
-  const cited = [h.genera, h.clades].filter(Boolean).join("; ");
-  if (cited) a.append(para("cited", `Cited by ${cited}`));
-  if (h.snippet) { const s = para("snip"); s.innerHTML = h.snippet; a.append(s); }   // escaped by the server
-  a.onclick = (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); go(p); };
-  return a;
-}
-
-function pager(page, pages) {
-  const box = document.createElement("div");
-  box.className = "pager";
-  const to = (n) => { const p = state(); p.set("page", n); go(p); };
-  const prev = Object.assign(document.createElement("button"), { className: "quiet", textContent: "Previous", disabled: page <= 1 });
-  const next = Object.assign(document.createElement("button"), { className: "quiet", textContent: "Next", disabled: page >= pages });
-  prev.onclick = () => to(page - 1);
-  next.onclick = () => to(page + 1);
-  box.append(prev, `Page ${page} of ${pages}`, next);
-  return box;
-}
-
-function markCurrent(key) {
-  for (const a of results.querySelectorAll(".hit")) a.setAttribute("aria-current", String(a.dataset.key === key));
-}
-
-async function openPaper(p) {
-  const key = p.get("key");
-  if (!key) { reader.hidden = true; reader.replaceChildren(); return; }
-  reader.hidden = false;
-  reader.replaceChildren(para("empty", "Loading…"));
-  const version = p.get("v") === "original" ? "original" : "text";
-  const res = await fetch(`/api/paper/${encodeURIComponent(key)}?version=${version}`);
-  if (!res.ok) { reader.replaceChildren(para("error", (await res.json()).detail || "Could not open that paper.")); return; }
-  const d = await res.json();
-  const title = Object.assign(document.createElement("h1"), { className: "title", textContent: d.title || d.key });
-  if (d.parent) title.textContent = `Supplement “${d.name}” — ${title.textContent}`;
-  const cite = para("cite");
-  cite.append(Object.assign(document.createElement("span"), { className: "key", textContent: d.key }),
-    ` · ${[d.authors, d.year, d.venue].filter(Boolean).join(" · ")}`);
-  if (d.doi) {
-    cite.append(" · ", Object.assign(document.createElement("a"), {
-      href: `https://doi.org/${d.doi}`, textContent: `doi:${d.doi}`, target: "_blank", rel: "noopener noreferrer" }));
-  }
-  reader.replaceChildren(title, cite, chips("Cited by genus", "genus", d.genera), chips("Cited by clade", "clade", d.clades), tools(d, p));
-  const conv = document.createElement("details");
-  conv.className = "conversion";
-  conv.append(Object.assign(document.createElement("summary"), { textContent: "Conversion record" }),
-    Object.assign(document.createElement("pre"), { textContent: JSON.stringify(d.conversion, null, 2) }));
-  const body = document.createElement("div");
-  body.className = "body";
-  body.lang = version === "original" ? "" : "en";
-  body.innerHTML = d.html;                       // rendered and sanitised by the server
-  reader.append(conv, body);
-  marks = pageMarks(body, d.has_pdf);
-  reader.scrollTop = 0;
-  const first = highlight(body, terms(p.get("q") || "", p.get("syntax") === "1"));
-  if (first) first.scrollIntoView({ block: "center" });
-}
-
-// --- Keeping the text and the PDF on the same page ---------------------------
-// The server turns each page marker into <div data-page="N">. Whichever pane
-// the reader last scrolled, clicked or keyed in leads; the other follows.
-
-let marks = [];
-let leader = "text";
-let shownPage = 0;
-
-function pageMarks(body, hasPdf) {
-  const list = [...body.querySelectorAll("div[data-page]")];
-  for (const m of list) {
-    m.className = "page-mark";
-    const n = Number(m.dataset.page);
-    if (hasPdf) {
-      const b = Object.assign(document.createElement("button"), { type: "button", textContent: `PDF page ${n}` });
-      b.onclick = () => openPdfAt(n);
-      m.append(b);
-    } else m.textContent = `PDF page ${n}`;
-  }
-  return list;
-}
-
-function textPage() {
-  // The page whose marker is the last one above the top of the reader.
-  const top = reader.scrollTop + 24;
-  let page = 0;
-  for (const m of marks) { if (m.offsetTop <= top) page = Number(m.dataset.page); else break; }
-  return page || (marks.length ? Number(marks[0].dataset.page) : 0);
-}
-
-function showCurrent(n) {
-  if (n === shownPage) return;
-  shownPage = n;
-  for (const m of marks) m.classList.toggle("current", Number(m.dataset.page) === n);
-}
-
-function openPdfAt(n) {
-  leader = "text";
-  if (!pdfPane.hidden && pdfShown) { pdf.goTo(n); return; }
-  const q = state(); q.set("pdf", "1"); q.set("pg", n); go(q);
-}
-
-function onPdfPage(n) {
-  if (leader !== "pdf" || !marks.length) return;
-  const target = marks.find((m) => Number(m.dataset.page) >= n);
-  if (target) reader.scrollTo({ top: target.offsetTop - 8 });
-  showCurrent(n);
-}
-
-let syncQueued = false;
-reader.addEventListener("scroll", () => {
-  if (syncQueued || !marks.length) return;
-  syncQueued = true;
-  requestAnimationFrame(() => {
-    syncQueued = false;
-    const n = textPage();
-    showCurrent(n);
-    if (leader === "text" && pdfShown && n && n !== pdf.current) pdf.goTo(n, "instant");
-  });
-}, { passive: true });
-for (const [el, who] of [[reader, "text"], [pdfPane, "pdf"]]) {
-  for (const ev of ["wheel", "pointerdown", "keydown", "touchstart"]) {
-    el.addEventListener(ev, () => { leader = who; }, { passive: true });
-  }
-}
-
-function chips(label, field, names) {
-  const box = document.createElement("div");
-  if (!names.length) return box;
-  box.className = "chips";
-  box.append(Object.assign(document.createElement("span"), { className: "label", textContent: label }));
-  for (const n of names) {
-    const p = new URLSearchParams(); p.set(field, n);
-    const a = Object.assign(document.createElement("a"), { href: `?${p}`, textContent: n });
-    a.onclick = (e) => { e.preventDefault(); go(p); };
-    box.append(a);
-  }
-  return box;
-}
-
-function tools(d, p) {
-  const box = document.createElement("div");
-  box.className = "tools";
-  if (d.has_original) {
-    const tabs = document.createElement("span");
-    tabs.className = "tabs";
-    for (const [v, label] of [["text", "English"], ["original", "Original"]]) {
-      const b = Object.assign(document.createElement("button"), { type: "button", textContent: label });
-      b.setAttribute("aria-pressed", String(d.version === v));
-      b.onclick = () => { const q = state(); if (v === "original") q.set("v", v); else q.delete("v"); go(q); };
-      tabs.append(b);
+    if (!(element instanceof type))
+    {
+        throw new Error(`missing element #${id}`);
     }
-    box.append(tabs);
-  }
-  if (d.has_pdf) {
-    const on = p.get("pdf") === "1";
-    const b = Object.assign(document.createElement("button"), { type: "button", className: "quiet", textContent: on ? "Hide PDF" : "Show PDF" });
-    b.onclick = () => { const q = state(); if (on) q.delete("pdf"); else q.set("pdf", "1"); go(q); };
-    box.append(b);
-  } else box.append(Object.assign(document.createElement("span"), { className: "quiet-text", textContent: "No PDF" }));
-  const raw = new URLSearchParams(); if (d.version === "original") raw.set("version", "original");
-  box.append(Object.assign(document.createElement("a"), { href: `/md/${encodeURIComponent(d.key)}?${raw}`, target: "_blank", textContent: "Markdown" }));
-  for (const s of d.supplements) {
-    const q = new URLSearchParams(); q.set("key", s.key);
-    const a = Object.assign(document.createElement("a"), { href: `?${q}`, textContent: `Supplement: ${s.name}` });
-    a.onclick = (e) => { e.preventDefault(); const r = state(); r.set("key", s.key); r.delete("v"); r.delete("pdf"); go(r); };
-    box.append(a);
-  }
-  if (d.parent) {
-    const a = Object.assign(document.createElement("a"), { href: `?key=${encodeURIComponent(d.parent)}`, textContent: "Main paper" });
-    a.onclick = (e) => { e.preventDefault(); const r = state(); r.set("key", d.parent); r.delete("pdf"); go(r); };
-    box.append(a);
-  }
-  return box;
+
+    return element;
 }
 
+/**
+ * Finds one of the search form's fields.
+ *
+ * @param {string} name - Field name.
+ * @returns {HTMLInputElement | HTMLSelectElement} The field.
+ */
+function getField(name)
+{
+    const field = form.elements.namedItem(name);
+
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement))
+    {
+        throw new Error(`missing field ${name}`);
+    }
+
+    return field;
+}
+
+/**
+ * Creates an element with a class and text.
+ *
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag - Element name.
+ * @param {string} [className] - Class to set.
+ * @param {string} [text] - Text content.
+ * @returns {HTMLElementTagNameMap[K]} The element.
+ */
+function createElement(tag, className, text)
+{
+    const element = document.createElement(tag);
+
+    if (className)
+    {
+        element.className = className;
+    }
+
+    if (text !== undefined)
+    {
+        element.textContent = text;
+    }
+
+    return element;
+}
+
+/**
+ * Creates a link that changes the app's state without reloading the page.
+ *
+ * @param {string} text - Link text.
+ * @param {URLSearchParams} parameters - The state it leads to.
+ * @returns {HTMLAnchorElement} The link.
+ */
+function createStateLink(text, parameters)
+{
+    const link = createElement("a", "", text);
+    link.href = `?${parameters}`;
+    link.addEventListener("click", (event) =>
+    {
+        if (!(event.metaKey || event.ctrlKey || event.shiftKey))
+        {
+            event.preventDefault();
+            go(parameters);
+        }
+    });
+
+    return link;
+}
+
+const form = getElement("search", HTMLFormElement);
+const results = getElement("results", HTMLElement);
+const reader = getElement("reader", HTMLElement);
+const pdfPane = getElement("pdf", HTMLElement);
+const pdfView = new PdfView(pdfPane, (page) => followPdf(page));
+
+/** The search and the paper on screen, as the parts of the URL they came from. */
+const shown = { search: "", paper: "" };
+
+/** @type {string | null} The key of the paper whose PDF is open. */
 let pdfShown = null;
-function showPdf(p) {
-  const key = p.get("key"), on = Boolean(key) && p.get("pdf") === "1";
-  pdfPane.hidden = !on;
-  $("layout").classList.toggle("with-pdf", on);
-  if (!on) { if (pdfShown) { pdf.close(); pdfPane.replaceChildren(); pdfShown = null; } return; }
-  if (pdfShown !== key) {
-    pdfShown = key;
-    pdf.open(`/pdf/${encodeURIComponent(key)}`, Number(p.get("pg")) || textPage() || 1);
-  }
+
+/** @type {Array<HTMLElement>} The open paper's page markers. */
+let pageMarks = [];
+
+/** @type {"text" | "pdf"} The pane the reader last scrolled, clicked or typed in. */
+let leader = "text";
+
+/** The page highlighted among the page markers. */
+let highlightedPage = 0;
+
+/** Whether a scroll of the reader is waiting to be synchronised. */
+let syncQueued = false;
+
+/**
+ * The app's state: the URL's query.
+ *
+ * @returns {URLSearchParams} The state.
+ */
+function getState()
+{
+    return new URLSearchParams(location.search);
 }
 
-// Words to highlight in the paper: the plain query's words and phrases. A
-// match is any word starting with a term, which covers most of what the
-// index's stemming matches ("dinosaur" finds "dinosaurs").
-function terms(q, syntax) {
-  if (syntax) q = q.replace(/\b(NEAR|AND|OR|NOT)\b|[A-Za-z_]+:|[(),\d]+(?=\))/g, " ");
-  const out = [];
-  for (const m of q.matchAll(/"([^"]*)"|(\S+)/g)) {
-    const t = (m[1] ?? m[2]).replace(/[*"]/g, "").trim();
-    if (t.length > 1) out.push(t);
-  }
-  return out;
-}
-
-function highlight(root, words) {
-  if (!words.length) return null;
-  const esc = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"));
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${esc.join("|")})`, "giu");
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  let first = null;
-  for (const node of nodes) {
-    const text = node.nodeValue;
-    re.lastIndex = 0;
-    if (!re.test(text)) continue;
-    re.lastIndex = 0;
-    const frag = document.createDocumentFragment();
-    let at = 0;
-    for (const m of text.matchAll(re)) {
-      frag.append(text.slice(at, m.index));
-      const mark = Object.assign(document.createElement("mark"), { textContent: m[0] });
-      first ??= mark;
-      frag.append(mark);
-      at = m.index + m[0].length;
+/**
+ * Moves to a new state, adding it to the browser's history.
+ *
+ * @param {URLSearchParams} parameters - The state.
+ */
+function go(parameters)
+{
+    for (const [name, value] of [...parameters])
+    {
+        if (!value || (name === "sort" && value === "relevance"))
+        {
+            parameters.delete(name);
+        }
     }
-    frag.append(text.slice(at));
-    node.replaceWith(frag);
-  }
-  return first;
+
+    history.pushState(null, "", parameters.size ? `?${parameters}` : location.pathname);
+    apply();
 }
 
-function para(cls, text) {
-  return Object.assign(document.createElement("div"), { className: cls, textContent: text ?? "" });
+/**
+ * Reads the search form into a state.
+ *
+ * @returns {URLSearchParams} The state.
+ */
+function readForm()
+{
+    const parameters = new URLSearchParams();
+
+    for (const name of textFields)
+    {
+        parameters.set(name, getField(name).value.trim());
+    }
+
+    for (const name of checkboxFields)
+    {
+        const field = getField(name);
+
+        if (field instanceof HTMLInputElement && field.checked)
+        {
+            parameters.set(name, "1");
+        }
+    }
+
+    return parameters;
 }
 
-form.addEventListener("submit", (e) => { e.preventDefault(); go(formParams()); });
-$("filters-toggle").onclick = () => showFilters($("filters").hidden);
-window.addEventListener("popstate", apply);
+/**
+ * Fills the search form from a state, opening the filters when any is set.
+ *
+ * @param {URLSearchParams} parameters - The state.
+ */
+function fillForm(parameters)
+{
+    for (const name of textFields)
+    {
+        getField(name).value = parameters.get(name) ?? (name === "sort" ? "relevance" : "");
+    }
 
-fetch("/api/facets").then((r) => r.json()).then((f) => {
-  for (const [id, names] of [["genera-list", f.genera], ["clades-list", f.clades]]) {
-    $(id).replaceChildren(...names.map((n) => Object.assign(document.createElement("option"), { value: n })));
-  }
-  form.elements.tool.append(...f.tools.map((t) => Object.assign(document.createElement("option"), { value: t, textContent: t })));
-  form.elements.tool.value = state().get("tool") || "";
-  if (f.papers) $("stats").textContent = `${f.papers.toLocaleString()} paper${f.papers === 1 ? "" : "s"}, ${f.years[0]}–${f.years[1]}`;
+    for (const name of checkboxFields)
+    {
+        const field = getField(name);
+
+        if (field instanceof HTMLInputElement)
+        {
+            field.checked = parameters.get(name) === "1";
+        }
+    }
+
+    if (filterFields.some((name) => parameters.get(name)) || (parameters.get("sort") ?? "relevance") !== "relevance")
+    {
+        showFilters(true);
+    }
+}
+
+/**
+ * Shows or hides the filters.
+ *
+ * @param {boolean} open - Whether to show them.
+ */
+function showFilters(open)
+{
+    getElement("filters", HTMLElement).hidden = !open;
+    getElement("filters-toggle", HTMLButtonElement).setAttribute("aria-expanded", String(open));
+}
+
+/**
+ * Shows the state in the URL: runs its search and opens its paper and PDF, each only
+ * when it changed.
+ *
+ * @returns {Promise<void>}
+ */
+async function apply()
+{
+    const state = getState();
+    fillForm(state);
+    const search = new URLSearchParams(state);
+
+    for (const name of ["key", "v", "pdf", "pg"])
+    {
+        search.delete(name);
+    }
+
+    if (search.toString() !== shown.search)
+    {
+        shown.search = search.toString();
+        await runSearch(search);
+    }
+    else
+    {
+        markCurrentHit(state.get("key"));
+    }
+
+    const paper = [state.get("key"), state.get("v")].join("|");
+
+    if (paper !== shown.paper)
+    {
+        shown.paper = paper;
+        await openPaper(state);
+    }
+
+    showPdf(state);
+}
+
+/**
+ * Runs a search and lists its results.
+ *
+ * @param {URLSearchParams} search - The search's part of the state.
+ * @returns {Promise<void>}
+ */
+async function runSearch(search)
+{
+    if ([...search.keys()].every((name) => name === "page"))
+    {
+        results.replaceChildren(createElement("div", "empty", introduction));
+
+        return;
+    }
+
+    results.replaceChildren(createElement("div", "empty", "Searching…"));
+    const response = await fetch(`/api/search?${search}`);
+    const data = await response.json();
+
+    if (!response.ok)
+    {
+        results.replaceChildren(createElement("div", "error", data.detail ?? "The search failed."));
+
+        return;
+    }
+
+    /** @type {SearchResponse} */
+    const found = data;
+    const pages = Math.max(1, Math.ceil(found.total / found.per_page));
+    const list = createElement("div");
+    list.append(...found.hits.map((hit) => createHitCard(hit)));
+    results.replaceChildren(
+        createElement("div", "count", found.total === 1 ? "1 paper" : `${found.total.toLocaleString()} papers`),
+        list,
+    );
+
+    if (pages > 1)
+    {
+        results.append(createPager(found.page, pages));
+    }
+
+    if (!found.hits.length)
+    {
+        results.append(createElement("div", "empty", "No matches."));
+    }
+
+    markCurrentHit(getState().get("key"));
+    results.scrollTop = 0;
+}
+
+/**
+ * Creates the card for one search result.
+ *
+ * @param {Hit} hit - The result.
+ * @returns {HTMLAnchorElement} The card, a link that opens the paper.
+ */
+function createHitCard(hit)
+{
+    const state = getState();
+    state.set("key", hit.key);
+    state.delete("v");
+    state.delete("pg");
+    const card = createStateLink("", state);
+    card.className = "hit";
+    card.dataset.key = hit.key;
+    const details = [hit.key, hit.year || "n.d.", hit.tool, hit.translated ? "translated" : ""];
+    card.append(
+        createElement("div", "key", details.filter(Boolean).join(" · ")),
+        createElement("div", "title", hit.title || "(no title)"),
+        createElement("div", "meta", [hit.authors, hit.venue].filter(Boolean).join(" — ")),
+    );
+    const citedBy = [hit.genera, hit.clades].filter(Boolean).join("; ");
+
+    if (citedBy)
+    {
+        card.append(createElement("div", "cited", `Cited by ${citedBy}`));
+    }
+
+    if (hit.snippet)
+    {
+        const snippet = createElement("div", "snip");
+        snippet.innerHTML = hit.snippet;
+        card.append(snippet);
+    }
+
+    return card;
+}
+
+/**
+ * Creates the previous/next controls under the results.
+ *
+ * @param {number} page - The page of results shown.
+ * @param {number} pages - The number of pages.
+ * @returns {HTMLDivElement} The controls.
+ */
+function createPager(page, pages)
+{
+    const pager = createElement("div", "pager");
+    const previous = createElement("button", "quiet", "Previous");
+    const next = createElement("button", "quiet", "Next");
+    previous.disabled = page <= 1;
+    next.disabled = page >= pages;
+
+    for (const [button, target] of /** @type {Array<[HTMLButtonElement, number]>} */ ([[previous, page - 1], [next, page + 1]]))
+    {
+        button.addEventListener("click", () =>
+        {
+            const state = getState();
+            state.set("page", String(target));
+            go(state);
+        });
+    }
+
+    pager.append(previous, `Page ${page} of ${pages}`, next);
+
+    return pager;
+}
+
+/**
+ * Marks the result card of the open paper.
+ *
+ * @param {string | null} key - The open paper's key.
+ */
+function markCurrentHit(key)
+{
+    for (const card of results.querySelectorAll(".hit"))
+    {
+        if (card instanceof HTMLElement)
+        {
+            card.setAttribute("aria-current", String(card.dataset.key === key));
+        }
+    }
+}
+
+/**
+ * Opens the state's paper in the reader, or empties the reader.
+ *
+ * @param {URLSearchParams} state - The state.
+ * @returns {Promise<void>}
+ */
+async function openPaper(state)
+{
+    const key = state.get("key");
+
+    if (!key)
+    {
+        reader.hidden = true;
+        reader.replaceChildren();
+
+        return;
+    }
+
+    reader.hidden = false;
+    reader.replaceChildren(createElement("div", "empty", "Loading…"));
+    const version = state.get("v") === "original" ? "original" : "text";
+    const response = await fetch(`/api/paper/${encodeURIComponent(key)}?version=${version}`);
+
+    if (!response.ok)
+    {
+        reader.replaceChildren(createElement("div", "error", (await response.json()).detail ?? "Could not open that paper."));
+
+        return;
+    }
+
+    /** @type {Paper} */
+    const paper = await response.json();
+    const title = createElement("h1", "title", paper.title || paper.key);
+
+    if (paper.parent)
+    {
+        title.textContent = `Supplement “${paper.name}” — ${title.textContent}`;
+    }
+
+    const citation = createElement("div", "cite");
+    citation.append(
+        createElement("span", "key", paper.key),
+        ` · ${[paper.authors, paper.year, paper.venue].filter(Boolean).join(" · ")}`,
+    );
+
+    if (paper.doi)
+    {
+        const link = createElement("a", "", `doi:${paper.doi}`);
+        link.href = `https://doi.org/${paper.doi}`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        citation.append(" · ", link);
+    }
+
+    const conversion = createElement("details", "conversion");
+    conversion.append(
+        createElement("summary", "", "Conversion record"),
+        createElement("pre", "", JSON.stringify(paper.conversion, null, 2)),
+    );
+    const body = createElement("div", "body");
+    body.lang = version === "original" ? "" : "en";
+    body.innerHTML = paper.html;
+    reader.replaceChildren(
+        title,
+        citation,
+        createChips("Cited by genus", "genus", paper.genera),
+        createChips("Cited by clade", "clade", paper.clades),
+        createTools(paper, state),
+        conversion,
+        body,
+    );
+    pageMarks = labelPageMarks(body, paper.has_pdf);
+    reader.scrollTop = 0;
+    const firstMatch = highlight(body, getTerms(state.get("q") ?? "", state.get("syntax") === "1"));
+    firstMatch?.scrollIntoView({ block: "center" });
+}
+
+/**
+ * Creates the links that filter by the genera or clades citing a paper.
+ *
+ * @param {string} label - What the names are.
+ * @param {string} field - The filter they set.
+ * @param {Array<string>} names - The names.
+ * @returns {HTMLDivElement} The links, or an empty element.
+ */
+function createChips(label, field, names)
+{
+    const chips = createElement("div");
+
+    if (names.length)
+    {
+        chips.className = "chips";
+        chips.append(
+            createElement("span", "label", label),
+            ...names.map((name) => createStateLink(name, new URLSearchParams([[field, name]]))),
+        );
+    }
+
+    return chips;
+}
+
+/**
+ * Creates the reader's controls: English/original, the PDF, the markdown and supplements.
+ *
+ * @param {Paper} paper - The open paper.
+ * @param {URLSearchParams} state - The state.
+ * @returns {HTMLDivElement} The controls.
+ */
+function createTools(paper, state)
+{
+    const tools = createElement("div", "tools");
+
+    if (paper.has_original)
+    {
+        const tabs = createElement("span", "tabs");
+
+        for (const [version, label] of [["text", "English"], ["original", "Original"]])
+        {
+            const button = createElement("button", "", label);
+            button.type = "button";
+            button.setAttribute("aria-pressed", String(paper.version === version));
+            button.addEventListener("click", () =>
+            {
+                const next = getState();
+                next.set("v", version === "original" ? version : "");
+                go(next);
+            });
+            tabs.append(button);
+        }
+
+        tools.append(tabs);
+    }
+
+    if (paper.has_pdf)
+    {
+        const open = state.get("pdf") === "1";
+        const button = createElement("button", "quiet", open ? "Hide PDF" : "Show PDF");
+        button.type = "button";
+        button.addEventListener("click", () =>
+        {
+            const next = getState();
+            next.set("pdf", open ? "" : "1");
+            go(next);
+        });
+        tools.append(button);
+    }
+    else
+    {
+        tools.append(createElement("span", "quiet-text", "No PDF"));
+    }
+
+    const markdown = createElement("a", "", "Markdown");
+    markdown.href = `/md/${encodeURIComponent(paper.key)}${paper.version === "original" ? "?version=original" : ""}`;
+    markdown.target = "_blank";
+    tools.append(markdown);
+
+    for (const supplement of paper.supplements)
+    {
+        tools.append(createStateLink(`Supplement: ${supplement.name}`, new URLSearchParams([["key", supplement.key]])));
+    }
+
+    if (paper.parent)
+    {
+        tools.append(createStateLink("Main paper", new URLSearchParams([["key", paper.parent]])));
+    }
+
+    return tools;
+}
+
+/**
+ * Shows or hides the PDF pane, opening the state's PDF when it changed.
+ *
+ * @param {URLSearchParams} state - The state.
+ */
+function showPdf(state)
+{
+    const key = state.get("key");
+    const open = Boolean(key) && state.get("pdf") === "1";
+    pdfPane.hidden = !open;
+    getElement("layout", HTMLElement).classList.toggle("with-pdf", open);
+
+    if (!open || key === null)
+    {
+        if (pdfShown)
+        {
+            pdfView.close();
+            pdfPane.replaceChildren();
+            pdfShown = null;
+        }
+    }
+    else if (pdfShown !== key)
+    {
+        pdfShown = key;
+        pdfView.open(`/pdf/${encodeURIComponent(key)}`, Number(state.get("pg")) || getTextPage() || 1);
+    }
+}
+
+// Keeping the text and the PDF on the same page. The server turns each page marker into
+// <div data-page="N">. Whichever pane the reader last scrolled, clicked or typed in leads,
+// and the other follows.
+
+/**
+ * Labels the page markers in a paper's text, as links to the PDF page when there is a PDF.
+ *
+ * @param {HTMLElement} body - The paper's text.
+ * @param {boolean} hasPdf - Whether the paper has a PDF.
+ * @returns {Array<HTMLElement>} The markers, in order.
+ */
+function labelPageMarks(body, hasPdf)
+{
+    const marks = [...body.querySelectorAll("div[data-page]")].filter((mark) => mark instanceof HTMLElement);
+
+    for (const mark of marks)
+    {
+        const page = Number(mark.dataset.page);
+        mark.className = "page-mark";
+
+        if (hasPdf)
+        {
+            const button = createElement("button", "", `PDF page ${page}`);
+            button.type = "button";
+            button.addEventListener("click", () => openPdfAt(page));
+            mark.append(button);
+        }
+        else
+        {
+            mark.textContent = `PDF page ${page}`;
+        }
+    }
+
+    return marks;
+}
+
+/**
+ * The page of the text at the top of the reader: the last marker above it.
+ *
+ * @returns {number} The page, or 0 when the paper has no markers.
+ */
+function getTextPage()
+{
+    const top = reader.scrollTop + 24;
+    let page = pageMarks.length ? Number(pageMarks[0].dataset.page) : 0;
+
+    for (const mark of pageMarks)
+    {
+        if (mark.offsetTop > top)
+        {
+            break;
+        }
+
+        page = Number(mark.dataset.page);
+    }
+
+    return page;
+}
+
+/**
+ * Highlights the marker of the page in view.
+ *
+ * @param {number} page - The page.
+ */
+function highlightPageMark(page)
+{
+    if (page !== highlightedPage)
+    {
+        highlightedPage = page;
+
+        for (const mark of pageMarks)
+        {
+            mark.classList.toggle("current", Number(mark.dataset.page) === page);
+        }
+    }
+}
+
+/**
+ * Shows a page of the PDF, opening the PDF pane if needed.
+ *
+ * @param {number} page - The page.
+ */
+function openPdfAt(page)
+{
+    leader = "text";
+
+    if (!pdfPane.hidden && pdfShown)
+    {
+        pdfView.goTo(page);
+    }
+    else
+    {
+        const state = getState();
+        state.set("pdf", "1");
+        state.set("pg", String(page));
+        go(state);
+    }
+}
+
+/**
+ * Scrolls the text to the page the PDF shows, when the PDF leads.
+ *
+ * @param {number} page - The page in view in the PDF.
+ */
+function followPdf(page)
+{
+    if (leader === "pdf" && pageMarks.length)
+    {
+        const target = pageMarks.find((mark) => Number(mark.dataset.page) >= page);
+
+        if (target)
+        {
+            reader.scrollTo({ top: target.offsetTop - 8 });
+        }
+
+        highlightPageMark(page);
+    }
+}
+
+/**
+ * Moves the PDF to the page the text shows, when the text leads; at most once a frame.
+ */
+function followText()
+{
+    if (!syncQueued && pageMarks.length)
+    {
+        syncQueued = true;
+        requestAnimationFrame(() =>
+        {
+            syncQueued = false;
+            const page = getTextPage();
+            highlightPageMark(page);
+
+            if (leader === "text" && pdfShown && page && page !== pdfView.current)
+            {
+                pdfView.goTo(page);
+            }
+        });
+    }
+}
+
+/**
+ * The words to highlight in the paper: the query's words and phrases. A match is any word
+ * starting with a term, which covers most of what the index's stemming matches
+ * ("dinosaur" finds "dinosaurs").
+ *
+ * @param {string} query - The query.
+ * @param {boolean} syntax - Whether the query uses search syntax, whose operators are dropped.
+ * @returns {Array<string>} The terms.
+ */
+function getTerms(query, syntax)
+{
+    const text = syntax ? query.replace(/\b(NEAR|AND|OR|NOT)\b|[A-Za-z_]+:|[(),\d]+(?=\))/g, " ") : query;
+
+    return [...text.matchAll(/"([^"]*)"|(\S+)/g)]
+        .map((match) => (match[1] ?? match[2]).replace(/[*"]/g, "").trim())
+        .filter((term) => term.length > 1);
+}
+
+/**
+ * Wraps every occurrence of the terms in the text in <mark>.
+ *
+ * @param {HTMLElement} root - The text.
+ * @param {Array<string>} terms - The terms.
+ * @returns {HTMLElement | null} The first mark, if any.
+ */
+function highlight(root, terms)
+{
+    if (!terms.length)
+    {
+        return null;
+    }
+
+    const escaped = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"));
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join("|")})`, "giu");
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+
+    while (walker.nextNode())
+    {
+        nodes.push(walker.currentNode);
+    }
+
+    /** @type {HTMLElement | null} */
+    let first = null;
+
+    for (const node of nodes)
+    {
+        const text = node.nodeValue ?? "";
+        const matches = [...text.matchAll(pattern)];
+
+        if (matches.length)
+        {
+            const fragment = document.createDocumentFragment();
+            let position = 0;
+
+            for (const match of matches)
+            {
+                const mark = createElement("mark", "", match[0]);
+                fragment.append(text.slice(position, match.index), mark);
+                first ??= mark;
+                position = match.index + match[0].length;
+            }
+
+            fragment.append(text.slice(position));
+            node.parentNode?.replaceChild(fragment, node);
+        }
+    }
+
+    return first;
+}
+
+/**
+ * Fills the filters' lists and the header's paper count.
+ *
+ * @returns {Promise<void>}
+ */
+async function loadFacets()
+{
+    /** @type {Facets} */
+    const facets = await (await fetch("/api/facets")).json();
+
+    for (const [id, names] of /** @type {Array<[string, Array<string>]>} */ ([["genera-list", facets.genera], ["clades-list", facets.clades]]))
+    {
+        getElement(id, HTMLDataListElement).replaceChildren(...names.map((name) =>
+        {
+            const option = createElement("option");
+            option.value = name;
+
+            return option;
+        }));
+    }
+
+    const tool = getField("tool");
+    tool.append(...facets.tools.map((name) => createElement("option", "", name)));
+    tool.value = getState().get("tool") ?? "";
+
+    if (facets.papers)
+    {
+        const count = `${facets.papers.toLocaleString()} paper${facets.papers === 1 ? "" : "s"}`;
+        getElement("stats", HTMLElement).textContent = `${count}, ${facets.years[0]}–${facets.years[1]}`;
+    }
+}
+
+form.addEventListener("submit", (event) =>
+{
+    event.preventDefault();
+    go(readForm());
 });
+getElement("filters-toggle", HTMLButtonElement).addEventListener("click", () =>
+{
+    // `hidden` is true, false or "until-found"; anything but false is closed
+    showFilters(getElement("filters", HTMLElement).hidden !== false);
+});
+window.addEventListener("popstate", () => apply());
+reader.addEventListener("scroll", () => followText(), { passive: true });
+
+for (const [pane, name] of /** @type {Array<[HTMLElement, "text" | "pdf"]>} */ ([[reader, "text"], [pdfPane, "pdf"]]))
+{
+    for (const type of ["wheel", "pointerdown", "keydown", "touchstart"])
+    {
+        pane.addEventListener(type, () =>
+        {
+            leader = name;
+        }, { passive: true });
+    }
+}
+
+loadFacets();
 apply();
