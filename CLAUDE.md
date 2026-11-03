@@ -118,6 +118,10 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus qc scan` | `scan_markdown_quality.py` | PUA garbage, CJK, image-only stubs; `--apply` flags vision OCR |
 | `corpus qc languages` | `audit_languages.py` | Non-English bodies (`TRANSLATION_AUDIT.md`) |
 | `corpus qc spillover` | `scan_spillover.py` | Markdown holding a neighbouring article |
+| `corpus clean spillover` | `trim_reprint_spillover.py` | Cut neighbouring articles out of a Nature-style reprint (dry run unless `--apply`) |
+| `corpus qc translations` | `audit_translation_completeness.py` | Translations that lost content: short or cut-off chunks, model false starts |
+| `corpus qc control-glyphs` | `identify_control_glyphs.py` | What glyph each broken font's control codes draw; builds the map for `repair control_glyphs` |
+| `corpus qc symbol-glyphs` | `identify_symbol_substitutions.py` | Coordinate symbols a text layer hands back as the wrong character, with crops |
 | `corpus qc textlayer` | `audit_vision_textlayer.py` | Vision output against the PDF's own text layer |
 | `corpus index` | `indexer.py` | Build/refresh `index/papers.db` (incremental) |
 | `corpus search` | `search.py` | Query the index |
