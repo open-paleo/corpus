@@ -68,6 +68,10 @@ ARTIFACTS = [
 def cache_entries(key: str) -> list[dict]:
     out = []
     for f in sorted(glob.glob(str(CACHE_DIR / key / "chunk-*.json"))):
+        # chunk-NNNN.short.json is a rejected attempt the translator kept after
+        # retrying the chunk; only chunk-NNNN.json is what the file holds
+        if not Path(f).name.count(".") == 1:
+            continue
         try:
             d = json.loads(Path(f).read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
