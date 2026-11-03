@@ -57,6 +57,7 @@ from corpus.pdf.render import pil_jpeg, render_pil
 from corpus.vision import cache as vision_cache
 from corpus.vision.client import make as make_client
 from corpus.vision.ocr import DEFAULT_DPI, DEFAULT_MODEL, ocr_fragment
+from corpus.pages import write_markdown
 
 CAND_DIR = TMP_DIR / "reocr_nooverlap"
 PROMPT_ID = "verbatim-v1"      # the page prompt's id, as convert_with_vision caches it
@@ -262,7 +263,7 @@ def apply(key: str, page: int, old: str, new_md: str) -> bool:
         "prompt_id": PROMPT_ID, "model": DEFAULT_MODEL, "markdown": new_md,
         "input_tokens": 0, "output_tokens": 0, "cache_read": 0, "cache_write": 0,
         "cached_hit": False, "method": "recovered_nooverlap"})
-    atomic_write_text(md_path, md.replace(old, new_md))
+    write_markdown(md_path, md.replace(old, new_md), old=md)
     print("   applied")
     return True
 

@@ -24,9 +24,9 @@ from dataclasses import dataclass
 from typing import Callable
 
 from corpus.config import MD_DIR, PDF_DIR
-from corpus.io import atomic_write_text
 from corpus.keys import add_key_args, key_from_path, resolve_keys
 from corpus.manifest import load as manifest_load
+from corpus.pages import write_markdown
 
 
 def _tool(entry: dict) -> str | None:
@@ -105,7 +105,7 @@ def repair_paper(key: str, entry: dict, *, only: list[str] | None = None,
     finally:
         doc.close()
     if apply and new != md:
-        atomic_write_text(md_path, new)
+        write_markdown(md_path, new)
     stats["_changed"] = {"changed": new != md}
     return stats
 

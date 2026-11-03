@@ -91,7 +91,7 @@ from pathlib import Path
 from corpus.config import MD_DIR
 from corpus.keys import key_from_path
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import in_marker, write_markdown
 
 SEP2 = re.compile(r"^\s*\|[-: ]+\|[-: ]+\|\s*$")          # two-cell separator
 # The gutter cell is usually one line number, but marker merges several physical
@@ -163,7 +163,8 @@ def inline_runs(text: str) -> list[list[tuple[int, int, int]]]:
     toks += [(m.start(1), m.end(1), int(m.group(1))) for m in HYPHEN_NUM.finditer(text)]
     # 4 digits so manuscripts past line 999 are
     # covered, capped below 1800 so citation years can never join a run.
-    toks = sorted(t for t in toks if t[2] <= MAX_LINE_NO)
+    marked = in_marker(text)
+    toks = sorted(t for t in toks if t[2] <= MAX_LINE_NO and not marked(t[0]))
 
     def qualifies(run):
         if len(run) >= MIN_RUN:
@@ -328,7 +329,7 @@ def process(path: Path, args):
     new = re.sub(r"\n{3,}", "\n\n", "\n".join(out))
     new, stats["inline"] = strip_inline_gutter(new)
     if args.apply:
-        atomic_write_text(path, new)
+        write_markdown(path, new)
     return (stats, len(text) - len(new)), None
 
 

@@ -20,6 +20,9 @@ BAMNH, RSC Transactions, Comptes Rendus and JSTOR-scanned plate-heavy monographs
 US Government Printing Office products of the same era (USGS, Smithsonian) often have clean text layers, and marker handles them with almost no prose damage; vision there wastes money.
 Probe interior pages, not page 1 (title pages misread even in clean scans).
 
+### Page markers: every page's text starts with `<!-- page N -->`
+The converters write one marker per PDF page (N counts pages in the PDF file from 1, not printed page numbers), so the web reader can put each text page beside its PDF page. Marker-converted files have markers alone on pages with no text layer, so a scan's markdown is not empty: test with `corpus.pages.is_empty()`. Rewriters save through `corpus.pages.write_markdown()`, which refuses a rewrite that loses, adds or reorders markers; if a repair is refused, the repair is what needs fixing. Translation never sends markers to the model: it cuts the text at its markers, translates the pieces and puts the markers back.
+
 ### Stub markdown: wrong PDF or image-only body?
 A 1-3 KB stub has two causes with different fixes. Wrong PDF (splash/landing page from a fetcher): small file, page count far below the article length; replace the PDF, because vision would OCR the splash page perfectly. Real PDF with image-only body: plausible page count, ~150-300 B/page, cover boilerplate ("This article was downloaded by", "Informa Ltd"); set `vision_ocr_needed`. Both occur in the same batch. Check PDF size and page count against the citation before choosing.
 

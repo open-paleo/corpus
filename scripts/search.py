@@ -8,7 +8,7 @@ FTS5 query syntax:
   "phrase"                   — exact phrase
   NEAR(word1 word2, 10)      — proximity (within 10 tokens)
   word*                      — prefix
-  field:term                 — restrict to field (title, authors, body, journal, genera, tool)
+  field:term                 — restrict to field (title, authors, body, journal, genera, clades)
   word1 OR word2             — boolean
   word1 AND NOT word2        — negation
 
@@ -17,6 +17,7 @@ Examples:
   search.py 'title:hadrosaur'
   search.py 'Hylaeosaurus' --year 1833
   search.py --genera Pteropelyx
+  search.py ankylosaur --clades Ankylosauria --translated
   search.py --list-keys
   search.py --stats
 
@@ -25,6 +26,8 @@ Usage:
                                                             [--year YEAR]
                                                             [--key K]
                                                             [--genera GENUS]
+                                                            [--clades CLADE]
+                                                            [--translated]
                                                             [--full-body]
                                                             [--list-keys]
 """
@@ -43,6 +46,9 @@ def main() -> int:
     ap.add_argument("--year", help="Restrict to this year (or year prefix, e.g. '187*')")
     ap.add_argument("--key", type=key_arg, help="Restrict to this citation_key")
     ap.add_argument("--genera", help="Restrict to a specific genus (substring match)")
+    ap.add_argument("--clades", help="Restrict to a specific clade (substring match)")
+    ap.add_argument("--translated", action="store_true",
+                    help="Only papers translated into English (the original is markdown/{key}.original.md)")
     ap.add_argument("--full-body", action="store_true",
                     help="Print the full body of the first match instead of snippets.")
     ap.add_argument("--list-keys", action="store_true",
@@ -99,12 +105,18 @@ def main() -> int:
     if args.genera:
         where_clauses.append("genera LIKE ?")
         params.append(f"%{args.genera}%")
+    if args.clades:
+        where_clauses.append("clades LIKE ?")
+        params.append(f"%{args.clades}%")
+    if args.translated:
+        where_clauses.append("translated = '1'")
 
     if not where_clauses:
-        print("ERROR: provide a query, --year, --key, or --genera (or --list-keys / --stats)", file=sys.stderr)
+        print("ERROR: provide a query, --year, --key, --genera, --clades or --translated "
+              "(or --list-keys / --stats)", file=sys.stderr)
         return 2
 
-    select_cols = "citation_key, year, title, authors, journal, genera, tool"
+    select_cols = "citation_key, year, title, authors, journal, genera, tool, clades"
     if args.query:
         # snippet of body field (column index 7 in the FTS5 schema)
         select_cols += ", snippet(papers, 7, '«', '»', '…', 24) AS snip"
@@ -129,18 +141,22 @@ def main() -> int:
         print(f"# {row[2]}")
         if row[5]:
             print(f"# genera: {row[5]}")
+        if row[7]:
+            print(f"# clades: {row[7]}")
         print()
         print(body)
         return 0
 
     print(f"{len(rows)} hit(s):\n")
-    for k, y, title, authors, journal, genera, tool, snip in rows:
+    for k, y, title, authors, journal, genera, tool, clades, snip in rows:
         first_author = authors.split(";")[0].split(",")[0].strip() if authors else "?"
         print(f"  {k:30s}  {y:5s}  {first_author[:25]:25s}  [{tool or '—'}]")
         if title:
             print(f"    {title[:110]}")
         if genera:
             print(f"    genera: {genera}")
+        if clades:
+            print(f"    clades: {clades}")
         if snip:
             print(f"    …{snip}…")
         print()

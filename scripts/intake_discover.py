@@ -50,6 +50,7 @@ from corpus.manifest import load as manifest_load
 from corpus.manifest import failed_source
 from corpus.bib import page_range
 from corpus.keys import nfc
+from corpus.pages import is_empty as md_is_empty
 
 # Citation-key shape: {authorlastname}{4-digit-year} with an optional single
 # trailing lowercase letter that marks a same-author-same-year split
@@ -232,7 +233,7 @@ def gather_pending(manifest: dict) -> list[Pending]:
     # them, so without this set they would be invisible to intake.
     def converted(k: str) -> bool:
         md = MD_DIR / f"{k}.md"
-        return md.exists() and md.stat().st_size > 0
+        return not md_is_empty(md)
     unconverted = {k for k in disk_keys & acquired
                    if not converted(k)
                    and not (manifest[k].get("conversion") or {}).get("skipped")}
@@ -354,7 +355,7 @@ def gather_supplementary_pending(manifest: dict) -> list[dict]:
     for pdf in sorted(SUPP_PDF_DIR.glob("*.pdf")):
         stem = nfc(pdf.stem)
         md = SUPP_MD_DIR / f"{stem}.md"
-        if md.exists() and md.stat().st_size > 0:
+        if not md_is_empty(md):
             continue  # already converted
         parsed = resolve_parent(stem, known_parents)
         if parsed and ((manifest[parsed[0]].get("supplementary") or {})

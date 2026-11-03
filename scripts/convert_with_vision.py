@@ -5,7 +5,7 @@ Step 2 (vision-OCR path): convert backlog PDFs to Markdown via
 Claude Sonnet vision (models.SONNET).
 
 Backlog detection (any of):
-  1. markdown/{key}.md exists with tool=="marker" and st_size==0
+  1. markdown/{key}.md exists with tool=="marker" and holds no text (page markers only)
      (scans-without-text-layer)
   2. manifest[key].conversion.vision_ocr_needed is True
      (set by scan_markdown_quality.py for CJK-heavy / PUA-garbage cases)
@@ -33,6 +33,7 @@ import pypdfium2 as pdfium
 
 from corpus.progress import clear_progress, set_progress
 from corpus.io import atomic_write_text
+from corpus.pages import is_empty as md_is_empty, join as join_pages
 from corpus.config import PDF_DIR, MD_DIR, RUNTIME, VISION_CACHE as CACHE_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 
@@ -58,7 +59,7 @@ def select_backlog(manifest: dict) -> list[str]:
         conv = v.get("conversion") or {}
         md = MD_DIR / f"{k}.md"
         is_zero = (conv.get("tool") == "marker"
-                   and md.exists() and md.stat().st_size == 0)
+                   and md.exists() and md_is_empty(md))
         is_flagged = conv.get("vision_ocr_needed") is True
         is_already_vision = conv.get("tool") == "claude-vision"
         if (is_zero or is_flagged) and not is_already_vision:
@@ -123,7 +124,7 @@ async def ocr_one_pdf(client, sem, model: str, dpi: int,
 
     results = await asyncio.gather(*[do_page(i) for i in targets])
 
-    # Assemble markdown (one page per section, separated by hr)
+    # Assemble markdown: each page opened by its page marker, pages separated by ---
     page_markdowns = []
     in_tok = out_tok = c_read = c_write = 0
     n_cached = 0
@@ -141,7 +142,7 @@ async def ocr_one_pdf(client, sem, model: str, dpi: int,
         if r.get("cached_hit"):
             n_cached += 1
 
-    full_md = ("\n\n---\n\n").join(page_markdowns) + "\n"
+    full_md = join_pages([(i + 1, md) for i, md in zip(targets, page_markdowns)])
     md_path = MD_DIR / f"{key}.md"
     atomic_write_text(md_path, full_md)
 

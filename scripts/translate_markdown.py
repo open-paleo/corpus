@@ -60,6 +60,8 @@ from corpus.config import require_env
 from corpus.vision.client import make as make_client
 from corpus.io import atomic_write_text
 from corpus.io import jsonl_append
+from corpus.pages import is_empty as md_is_empty, segments, strip as strip_markers
+from corpus.pages import write_markdown
 # Sonnet for every language. Haiku 5.5 left most paragraphs of a German paper
 # untranslated while reporting end_turn, and swapped printed taxon names
 # (docs/notes/conversion.md, "Model choice").
@@ -203,6 +205,31 @@ INVENTED_HEADING_RE = re.compile(
     r"|translat(?:ion|ed text)(?: from \w+(?: to \w+)?)?|begins translation"
     r"|translated paleontology text|[\w ]*paleontology text[^\n]*translat[^\n]*)\**\]?:?\s*",
     re.I)
+
+
+def chunk_plan(body: str, max_chars: int) -> tuple[list[str], list[tuple[str, str | int]]]:
+    """The chunks to translate, and the order to reassemble them with the page markers.
+
+    Page markers never go to the model, which could drop or alter them: the
+    body is cut at its markers, each piece chunked, and the plan lists
+    ("marker", line) and ("chunk", index) in document order. Without markers
+    the chunks are exactly chunk_markdown's, so existing chunk caches stay valid.
+    """
+    if segments(body) == [("", body.strip("\n"))]:
+        chunks = chunk_markdown(body, max_chars)
+        return chunks, [("chunk", i) for i in range(len(chunks))]
+    chunks, plan = [], []
+    for opener, seg in segments(body):
+        if opener:
+            plan.append(("marker", opener))
+        for c in (chunk_markdown(seg, max_chars) if seg.strip() else []):
+            plan.append(("chunk", len(chunks)))
+            chunks.append(c)
+    return chunks, plan
+
+
+def assemble(plan: list[tuple[str, str | int]], pieces: dict[int, str]) -> str:
+    return "\n\n".join(v if kind == "marker" else pieces[v] for kind, v in plan).strip() + "\n"
 
 
 def clean_chunk_opening(src: str, tr: str) -> tuple[str, list[str]]:
@@ -374,13 +401,13 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict,
                         src_lang_override: str | None = None) -> dict | None:
     started = time.time()
     md_path = MD_DIR / f"{key}.md"
-    if not md_path.exists() or md_path.stat().st_size == 0:
+    if md_is_empty(md_path):
         print(f"  ! {key}: no markdown"); return None
 
     body = md_path.read_text(errors="replace", encoding="utf-8")
 
     # Guard 1: skip if the markdown has too little real prose (image-only stubs etc.)
-    alpha_chars = sum(1 for c in body if c.isalpha())
+    alpha_chars = sum(1 for c in strip_markers(body) if c.isalpha())
     if alpha_chars < MIN_ALPHA_CHARS_TO_TRANSLATE:
         print(f"  - {key}: too sparse ({alpha_chars} alpha chars < {MIN_ALPHA_CHARS_TO_TRANSLATE}), skipping")
         return None
@@ -417,7 +444,7 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict,
         atomic_write_text(orig_visible, body)
 
     max_chars = MAX_CHARS_PER_CHUNK_CJK if src_lang in CJK_LANGS else MAX_CHARS_PER_CHUNK
-    chunks = chunk_markdown(body, max_chars)
+    chunks, plan = chunk_plan(body, max_chars)
     print(f"  [{key}] src={src_lang}, {len(body):,} chars in {len(chunks)} chunk(s)")
 
     async def do_chunk(i, chunk):
@@ -443,28 +470,28 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict,
 
     in_tok = out_tok = c_read = c_write = 0
     n_failed = n_cached = n_refused = 0
-    pieces = []
+    pieces: dict[int, str] = {}
     for i, r in results:
         if "error" in r:
             n_failed += 1
-            pieces.append(f"\n\n[TRANSLATION FAILED FOR CHUNK {i}: {r['error']}]\n\n")
+            pieces[i] = f"\n\n[TRANSLATION FAILED FOR CHUNK {i}: {r['error']}]\n\n"
             continue
         # Guard 2: catch LLM refusals masquerading as valid translations.
         ref = is_refusal(r["translated"])
         if ref:
             n_refused += 1
             print(f"  ! {key}: chunk {i} looks like a refusal (matched /{ref}/), discarding")
-            pieces.append(f"\n\n[TRANSLATION REFUSED FOR CHUNK {i}: {ref}]\n\n")
+            pieces[i] = f"\n\n[TRANSLATION REFUSED FOR CHUNK {i}: {ref}]\n\n"
         else:
             cleaned, notes = clean_chunk_opening(chunks[i], r["translated"])
             for n in notes:
                 print(f"  ~ {key}: chunk {i}: {n}")
-            pieces.append(cleaned)
+            pieces[i] = cleaned
         in_tok += r["input_tokens"]; out_tok += r["output_tokens"]
         c_read += r["cache_read"]; c_write += r["cache_write"]
         if r.get("cached_hit"): n_cached += 1
 
-    new_body = "\n\n".join(pieces).strip() + "\n"
+    new_body = assemble(plan, pieces)
     write_ok = n_failed == 0 and n_refused == 0
     # Guard 3: don't replace original if translation shrank suspiciously (>50% smaller).
     # This catches summarization/omission that slipped past the refusal regex.
@@ -473,7 +500,7 @@ async def translate_one(client, sem, model: str, key: str, manifest: dict,
         write_ok = False
         print(f"  ! {key}: translated body shrank to {shrink_ratio:.0%} of original ({len(new_body)}/{len(body)} chars), refusing to overwrite")
     if write_ok:
-        atomic_write_text(md_path, new_body)
+        write_markdown(md_path, new_body, old=body)
 
     p = PRICES.get(model, PRICES[SONNET])
     cost = (in_tok * p["in"] + c_read * p["cache_r"]
@@ -509,10 +536,10 @@ def select_candidates(manifest: dict, threshold: float = 0.25) -> list[str]:
     cands = []
     for key in sorted(manifest):
         md = MD_DIR / f"{key}.md"
-        if not md.exists() or md.stat().st_size == 0:
+        if md_is_empty(md):
             continue
         body = md.read_text(errors="replace", encoding="utf-8")
-        mix = sample_body_languages(body)
+        mix = sample_body_languages(strip_markers(body))
         non_en = sum(pct for lang, pct in mix.items()
                      if lang not in SKIP_LANGS and lang in TRUSTED_LANGS)
         if non_en >= threshold:

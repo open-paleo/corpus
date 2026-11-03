@@ -29,7 +29,7 @@ from corpus.pdf.text import open_pdf
 from corpus.config import ROOT
 from corpus.manifest import load as manifest_load
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 UML = {"a": "ä", "e": "ë", "i": "ï", "ı": "ï", "o": "ö", "u": "ü", "y": "ÿ",
        "A": "Ä", "E": "Ë", "I": "Ï", "O": "Ö", "U": "Ü"}
@@ -264,7 +264,7 @@ def main() -> int:
             for x in left[:12]:
                 print(f"      left: …{x}…")
         if a.apply and new != md:
-            atomic_write_text(md_p, new)
+            write_markdown(md_p, new)
     print(f"{'repaired' if a.apply else 'repairable'}: {tot_fixed} mark(s) over {len(targets)} file(s); {tot_left} left for review")
     return 0
 

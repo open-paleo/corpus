@@ -75,6 +75,7 @@ from corpus.config import ROOT as ARCHIVE, MD_DIR
 from corpus.keys import key_arg
 from corpus.words import WORDS as _WORDS, wordlist_path
 from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 CACHE = ARCHIVE / ".runtime" / "cache" / "ligature_lexicon.json"
 
@@ -628,7 +629,7 @@ def apply_all(md_dir: Path, df: dict[str, int], write: bool) -> int:
         changed += 1
         total += n
         if write:
-            atomic_write_text(p, out)
+            write_markdown(p, out)
     verb = "rewrote" if write else "would rewrite"
     print(f"{verb} {changed} files, {total} repairs, {len(log)} distinct forms")
     if not write:
@@ -713,7 +714,7 @@ def main() -> int:
     if args.apply:
         bak = path.with_suffix(path.suffix + ".ligature.bak")
         bak.write_text(src, encoding="utf-8")
-        atomic_write_text(path, out)
+        write_markdown(path, out)
         print(f"  APPLIED (backup: {bak.name})")
     else:
         print("  (dry run — re-run with --apply to write)")

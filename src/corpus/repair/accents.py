@@ -49,7 +49,7 @@ from corpus.pdf.text import open_pdf
 from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_arg
 from corpus.md import compose
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 ACUTE, GRAVE, CIRCUM, TILDE, DIAER = "́", "̀", "̂", "̃", "̈"
 
@@ -198,7 +198,7 @@ def process(key: str, apply: bool, quiet: bool) -> tuple[int, int]:
     finally:
         doc.close()
     if apply and new != md:
-        atomic_write_text(md_path, new)
+        write_markdown(md_path, new)
     return res["applied"], res["missed"]
 
 

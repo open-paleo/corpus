@@ -66,7 +66,7 @@ import argparse
 import re
 from corpus.config import MD_DIR
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import restore_dropped, write_markdown
 
 HEAD_LIMIT = 4000        # only blocks starting within this many chars are eligible
 REF_HEADING_LIMIT = 1500  # a bare "REFERENCES" heading is junk only this early
@@ -1443,6 +1443,7 @@ def block_is_junk(block: str, offset: int, tf: bool, jstor: bool,
 
 def strip_file(text: str) -> tuple[str, list[str], int]:
     """Return (new_text, removed_block_previews, n_watermark_removals)."""
+    original = text
     tf = bool(TF_HALLMARK.search(text[:HEAD_LIMIT]))
     jstor = bool(JSTOR_HALLMARK.search(text[:HEAD_LIMIT]))
     elsevier = bool(ELSEVIER_HALLMARK.search(text[:HEAD_LIMIT]))
@@ -1578,6 +1579,8 @@ def strip_file(text: str) -> tuple[str, list[str], int]:
     new_text = "\n\n".join(kept).lstrip("\n")
     if new_text and not new_text.endswith("\n"):
         new_text += "\n"
+    # A removed cover or blank page keeps its page marker: the PDF still has the page.
+    new_text = restore_dropped(original, new_text)
     return (new_text,
             bhl_removed + tf_removed + rs_removed + gsa_removed + hal_removed + nmgs_removed + eper_removed + umi_removed + zora_removed
             + ddd_removed + esch_removed + peabody_removed + sd_removed + amgh_removed
@@ -1628,7 +1631,7 @@ def main() -> int:
         if len(samples) < args.show:
             samples.append((f.name, len(orig) - len(new), removed, n_wm))
         if args.apply:
-            atomic_write_text(f, new)
+            write_markdown(f, new)
 
     mode = "APPLIED" if args.apply else "DRY RUN (no files written)"
     print(f"=== strip_frontmatter — {mode} ===")

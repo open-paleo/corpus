@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from corpus.config import MD_DIR
 from corpus.manifest import commit as manifest_commit, load as manifest_load
 from corpus.keys import key_from_path
+from corpus.pages import strip as strip_markers
 
 IMAGE_REF_RE = re.compile(r"!\[[^\]]*\]\([^)]+\)")
 
@@ -115,10 +116,10 @@ def main() -> int:
         # Skip our visible-original backups so we don't double-flag them
         if md.stem.endswith(".original"):
             continue
-        text = md.read_text(errors="replace", encoding="utf-8")
+        text = strip_markers(md.read_text(errors="replace", encoding="utf-8"))
         n = len(text)
         if n == 0:
-            continue  # zero-byte already in backlog
+            continue  # no text: convert_with_vision.py already picks these up
         n_scanned += 1
         n_pua = len(PUA_RE.findall(text))
         n_cjk = len(CJK_RE.findall(text))

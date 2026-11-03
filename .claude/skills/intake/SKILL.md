@@ -82,7 +82,7 @@ Default for `≥1900` papers. Marker handles them in 30-100s/PDF on Apple Silico
 
 ### Path B — Vision OCR direct (1800s and very early 1900s scans)
 
-Pre-1900 PDFs are nearly always image-only scans of letterpress prints; marker's `--disable_ocr` mode produces empty stubs and even with OCR it misreads old typography. Skip marker entirely; set `conversion.vision_ocr_needed=True` upfront with `vision_ocr_reason="1800s scan; skip marker"`.
+Pre-1900 PDFs are nearly always image-only scans of letterpress prints; marker's `--disable_ocr` mode produces markdown with page markers and no text and even with OCR it misreads old typography. Skip marker entirely; set `conversion.vision_ocr_needed=True` upfront with `vision_ocr_reason="1800s scan; skip marker"`.
 
 - `<1900` → always Path B.
 - `1900–1919` → decide by text-layer quality, not year: BAMNH, RSC Transactions, Comptes Rendus and JSTOR-scanned plate monographs usually need Path B; USGS and Smithsonian products often have clean text layers and take Path A. Probe interior pages, not page 1 (see `docs/notes/conversion.md`, "1900-1919 papers").
@@ -446,7 +446,7 @@ PDF in pdfs/ but not in manifest acquired set, OR modified/untracked in git stat
         convert_with_vision.py --key {key} --force)
 
 After conversion (Path A/D):
-├── 0-byte md or <200 B/page over >10 pages → set vision_ocr_needed; rerun via §7
+├── no text besides page markers, or <200 B/page over >10 pages → set vision_ocr_needed; rerun via §7
 ├── Body is cover-page boilerplate (T&F pattern) → set vision_ocr_needed; rerun via §7
 ├── audit_languages flag on English journal → marker CID-garbage; vision OCR
 └── audit_languages flag on actual non-English → translate via §8

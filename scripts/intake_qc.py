@@ -33,6 +33,7 @@ from corpus.config import MD_DIR
 from corpus.manifest import load as manifest_load
 from corpus.keys import read_keys_file
 from corpus.keys import key_arg
+from corpus.pages import text_size as md_text_size
 
 TF_STUB_MARKERS = [
     "PLEASE SCROLL DOWN FOR ARTICLE",
@@ -75,7 +76,7 @@ def qc_one(key: str, manifest: dict) -> QcRow:
     tool = conv.get("tool")
     pages = conv.get("page_count") or 0
     md = MD_DIR / f"{key}.md"
-    sz = md.stat().st_size if md.exists() else 0
+    sz = md_text_size(md)          # page markers are not text
     bpp = (sz / pages) if pages else 0.0
 
     flag = "ok"
