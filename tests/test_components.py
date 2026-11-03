@@ -1,5 +1,5 @@
-"""Vision cache, HTTP cap, bib parsing, supplementary keys, pdf_text helpers,
-script helpers, and web UI path/escaping regressions."""
+"""Vision cache, HTTP cap, bib parsing, supplementary keys, pdf_text helpers
+and script helpers. The web app's tests are in test_web.py."""
 import http.server
 import threading
 

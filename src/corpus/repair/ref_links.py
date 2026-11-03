@@ -54,7 +54,7 @@ from corpus.pdf.text import open_pdf
 from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_from_path
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 # A link whose text is glued to the end of the preceding word. The word is
 # captured so the reconstruction can be anchored against the PDF text layer.
@@ -131,7 +131,7 @@ def process(key: str, apply: bool, affiliations: bool, quiet: bool) -> tuple[int
     finally:
         doc.close()
     if apply and new != text:
-        atomic_write_text(path, new)
+        write_markdown(path, new)
     return res["applied"], res["unverified"]
 
 

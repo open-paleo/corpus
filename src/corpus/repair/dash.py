@@ -52,11 +52,11 @@ import sys
 from collections import Counter
 
 from corpus.pdf.text import open_pdf
-from corpus.io import atomic_write_text
 from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_from_path
 from corpus.keys import key_arg
 from corpus.md import plain
+from corpus.pages import write_markdown
 
 # The Elsevier dash-only subset. Keyed by font name because the decoded
 # character is an ordinary letter and carries no signal of its own.
@@ -199,7 +199,7 @@ def process(key: str, apply: bool, quiet: bool) -> dict:
     finally:
         doc.close()
     if apply and new != md:
-        atomic_write_text(md_path, new)
+        write_markdown(md_path, new)
     return res
 
 

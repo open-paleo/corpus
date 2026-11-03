@@ -47,6 +47,7 @@ import pypdfium2 as pdfium
 
 from corpus.config import MD_DIR, PDF_DIR, VISION_CACHE as CACHE_DIR, log_path
 from corpus.io import atomic_write_text
+from corpus.pages import join as join_pages
 from corpus.models import cost as model_cost
 from corpus.vision import cache as vision_cache
 from corpus.vision.client import make as make_client
@@ -209,7 +210,8 @@ async def main_async(args) -> int:
         c_read += r["cache_read"]; c_write += r["cache_write"]
         n_cached += bool(r.get("cached_hit"))
 
-    atomic_write_text(MD_DIR / f"{key}.md", "\n\n---\n\n".join(parts) + "\n")
+    # Both book pages of a spread carry the marker of the PDF page they came from.
+    atomic_write_text(MD_DIR / f"{key}.md", join_pages(list(zip(src_pages, parts))))
 
     cost = model_cost(args.model, in_tok, out_tok, c_read, c_write)
     summary = {

@@ -41,8 +41,8 @@ from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_from_path
 from corpus.keys import read_keys_file
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
 from corpus.md import compose as compose_mark, normalize
+from corpus.pages import write_markdown
 
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 CONTEXT = 28
@@ -196,7 +196,7 @@ def process(key: str, apply: bool, verbose: bool, accents: bool = False) -> dict
     finally:
         doc.close()
     if apply and new != md:
-        atomic_write_text(md_path, new)
+        write_markdown(md_path, new)
     return res
 
 

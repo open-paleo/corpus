@@ -121,6 +121,7 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus qc textlayer` | `audit_vision_textlayer.py` | Vision output against the PDF's own text layer |
 | `corpus index` | `indexer.py` | Build/refresh `index/papers.db` (incremental) |
 | `corpus search` | `search.py` | Query the index |
+| `corpus web` | `web.py` | Search, read and check papers in a browser: the text beside its PDF, kept on the same page (127.0.0.1:8765; `--open`) |
 
 ## "I just added a PDF — now what?"
 
@@ -197,6 +198,7 @@ automated check.
 ./.runtime/venv/bin/corpus search --genera Pteropelyx
 ./.runtime/venv/bin/corpus search 'titanosaur' --year '202*'
 ./.runtime/venv/bin/corpus search --key KEY --full-body
+./.runtime/venv/bin/corpus web --open      # the same search in a browser, each paper beside its PDF
 ```
 
 The tokenizer is `porter unicode61 remove_diacritics 2` ("México" matches

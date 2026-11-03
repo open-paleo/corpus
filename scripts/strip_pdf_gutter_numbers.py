@@ -57,7 +57,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import in_marker, write_markdown
 
 LEAD = re.compile(r"^(\d{1,4})(?=\s|$)", re.M)
 BARE = re.compile(r"(?<!\S)(\d{1,4})(?!\S)")
@@ -105,7 +105,8 @@ def pdf_evidence(path: Path) -> tuple[list[int], int, int, str | None]:
 def md_tokens(text: str) -> list[tuple[int, int, int]]:
     toks = [(m.start(1), m.end(1), int(m.group(1))) for m in BARE.finditer(text)]
     toks += [(m.start(1), m.end(1), int(m.group(1))) for m in HYPHEN.finditer(text)]
-    return sorted(t for t in toks if t[2] <= MAX_LINE)
+    marked = in_marker(text)
+    return sorted(t for t in toks if t[2] <= MAX_LINE and not marked(t[0]))
 
 
 def match_gutter(text: str, seq: list[int], window: int = 60):
@@ -215,7 +216,7 @@ def process(key: str, args):
 
     new = cut(text, hits)
     if args.apply:
-        atomic_write_text(md, new)
+        write_markdown(md, new)
     return {"marker": marker, "pages": pages, "gutter_pages": gutter_pages,
             "seq": len(seq), "hits": len(hits), "frac": frac,
             "guarded": guarded, "bytes": len(text) - len(new)}, None

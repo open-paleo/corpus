@@ -37,7 +37,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 from corpus.config import ROOT
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 HAN = re.compile(r"[一-鿿]")
 DASH = r"[—–－‒―~～\-]"
@@ -103,7 +103,7 @@ def main() -> int:
         keep = [x for n, x in enumerate(edits) if n not in skip]
         for s, e, new, *_ in sorted(keep, reverse=True):
             md = md[:s] + new + md[e:]
-        atomic_write_text(path, md)
+        write_markdown(path, md)
         print(f"applied {len(keep)}, skipped {len(edits) - len(keep)}")
     return 0
 

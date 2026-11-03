@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corpus</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/app.css">
+<script type="module" src="/static/app.js"></script>
+</head>
+<body>
+<header class="bar">
+  <a class="home" href="/">Corpus</a>
+  <form id="search" role="search" autocomplete="off">
+    <div class="row">
+      <input id="q" name="q" type="search" aria-label="Search"
+             placeholder='Words, "a phrase", prefix*'>
+      <button type="submit">Search</button>
+      <button type="button" id="filters-toggle" class="quiet" aria-expanded="false"
+              aria-controls="filters">Filters</button>
+    </div>
+    <div id="filters" class="filters" hidden>
+      <label>Cited by genus <input name="genus" list="genera-list" size="16"></label>
+      <label>Cited by clade <input name="clade" list="clades-list" size="16"></label>
+      <label>Years <input name="from" inputmode="numeric" size="5" aria-label="From year">
+        to <input name="to" inputmode="numeric" size="5" aria-label="To year"></label>
+      <label>Converted with <select name="tool"><option value="">any</option></select></label>
+      <label>Sort <select name="sort">
+        <option value="relevance">relevance</option>
+        <option value="year">oldest first</option>
+        <option value="year-desc">newest first</option>
+      </select></label>
+      <label class="check"><input type="checkbox" name="translated"> Translated</label>
+      <label class="check"><input type="checkbox" name="supplements"> Has supplements</label>
+      <label class="check" title="NEAR(a b, 10), a OR b, title:word, prefix*">
+        <input type="checkbox" name="syntax"> Search syntax</label>
+    </div>
+  </form>
+  <span id="stats" class="quiet-text"></span>
+</header>
+<datalist id="genera-list"></datalist>
+<datalist id="clades-list"></datalist>
+<main id="layout">
+  <section id="results" aria-label="Results">
+    <p class="empty">Search the full text of every converted paper, or filter by the genus or clade whose data cites it.</p>
+  </section>
+  <article id="reader" aria-label="Paper" hidden></article>
+  <section id="pdf" aria-label="PDF" hidden></section>
+</main>
+</body>
+</html>

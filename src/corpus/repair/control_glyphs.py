@@ -59,7 +59,7 @@ from pathlib import Path
 from corpus.pdf.text import open_pdf
 from corpus.config import PDF_DIR, MD_DIR
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 # Base set worth restoring. Whatever --map produces is ADDED to this at run
 # time: papers lose accented letters (á é í ó — Spanish author names) far
@@ -271,7 +271,7 @@ def main() -> int:
             md = md[:pos - eat] + ch + md[pos:]
         for _, joined, real in fused:
             md = re.sub(rf"(?<![\w-]){re.escape(joined)}(?![\w-])", real, md)
-        atomic_write_text(md_path, md)
+        write_markdown(md_path, md)
         print("      APPLIED")
     elif not args.apply:
         print("\nRe-run with --apply to write. Then re-index.")

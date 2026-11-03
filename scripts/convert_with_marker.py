@@ -47,6 +47,7 @@ from corpus.keys import key_from_path
 from corpus.keys import read_keys_file
 from corpus.keys import key_arg
 from corpus.io import jsonl_append
+from corpus.pages import from_marker_output, is_empty as md_is_empty
 
 # marker prints a tqdm bar like "Processing PDFs:  88%|███| 7/8 [..]" — parse
 # the N/M so the status line can show live progress.
@@ -110,7 +111,7 @@ def already_marker_converted(entry: dict, key: str) -> bool:
     if conv.get("tool") != "marker":
         return False
     md_path = MD_DIR / f"{key}.md"
-    return md_path.exists() and md_path.stat().st_size > 0
+    return not md_is_empty(md_path)
 
 
 def already_marker_converted_supp(manifest: dict, stem: str) -> bool:
@@ -124,7 +125,7 @@ def already_marker_converted_supp(manifest: dict, stem: str) -> bool:
     if rec.get("tool") != "marker":
         return False
     md_path = SUPP_MD_DIR / f"{stem}.md"
-    return md_path.exists() and md_path.stat().st_size > 0
+    return not md_is_empty(md_path)
 
 
 def post_process_outputs(candidates: list[str], output_dir: Path,
@@ -152,6 +153,8 @@ def post_process_outputs(candidates: list[str], output_dir: Path,
 
         # Move markdown
         md_dst = md_out_dir / f"{key}.md"
+        md_src.write_text(from_marker_output(md_src.read_text(encoding="utf-8")),
+                          encoding="utf-8")
         shutil.move(str(md_src), str(md_dst))
 
         # Read meta for page count
@@ -298,6 +301,7 @@ def main() -> int:
         "--output_dir", str(output_dir),
         "--workers", str(args.workers),
         "--output_format", "markdown",
+        "--paginate_output",                 # page separators, turned into page markers
         "--disable_image_extraction",
         "--disable_ocr_math",
         "--lowres_image_dpi", "72",

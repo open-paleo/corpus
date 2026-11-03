@@ -21,6 +21,7 @@ from collections import Counter
 from corpus.config import DB, MD_DIR, PDF_DIR
 from corpus.keys import keys_in
 from corpus.manifest import acquisition, conversion, load as manifest_load
+from corpus.pages import is_empty as md_is_empty
 
 
 def _on_disk(folder, suffix: str, nonempty: bool = False) -> set[str]:
@@ -28,7 +29,7 @@ def _on_disk(folder, suffix: str, nonempty: bool = False) -> set[str]:
     without empty files (a converted paper has text)."""
     keys = {k for k in keys_in(folder, suffix) if not k.endswith(".original")}
     if nonempty:
-        keys = {k for k in keys if (folder / f"{k}{suffix}").stat().st_size}
+        keys = {k for k in keys if not md_is_empty(folder / f"{k}{suffix}")}
     return keys
 
 

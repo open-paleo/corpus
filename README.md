@@ -75,8 +75,12 @@ So the data repository clone is optional: without it, the bib comes from
    born-digital PDFs, vision OCR for scans and pre-1900 papers), runs the
    quality checks and repairs, and indexes the result. Without Claude Code,
    run the same steps yourself: `CLAUDE.md` lists them.
-5. **Search.** `corpus search 'Hylaeosaurus'`, `corpus search --genera Iguanodon`,
-   `corpus search 'NEAR("tail club" ankylosaur, 10)'`.
+5. **Search and read.** `corpus search 'Hylaeosaurus'`, `corpus search --genera Iguanodon`,
+   `corpus search 'NEAR("tail club" ankylosaur, 10)'`. `corpus web --open` opens
+   the same search in your browser (on 127.0.0.1 only, with no login), shows a
+   paper's text beside its PDF on the same page, and switches between a
+   translation and its original. It needs the `web` extra, which
+   `bootstrap.sh` installs.
 
 `corpus` with no arguments lists every command. Each one is a script in
 `scripts/` and takes `--help`.

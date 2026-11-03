@@ -61,6 +61,7 @@ from corpus.keys import key_arg
 from corpus.config import require_env
 from corpus.vision.client import make as make_client
 from corpus.io import atomic_write_text
+from corpus.pages import marker as page_marker
 from corpus.vision import cache as vision_cache
 from corpus.vision.ocr import call_image
 from corpus.io import jsonl_append
@@ -289,7 +290,7 @@ async def main_async(args) -> int:
             md = dedupe_overlap(parts[-1], md)
         if md.strip():
             parts.append(md)
-    body = "\n\n".join(parts)
+    body = page_marker(1) + "\n\n" + "\n\n".join(parts) + "\n"   # a poster is one PDF page
 
     MD_DIR.mkdir(parents=True, exist_ok=True)
     atomic_write_text((MD_DIR / f"{key}.md"), body)

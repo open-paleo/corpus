@@ -60,7 +60,7 @@ from collections import Counter
 from pathlib import Path
 from corpus.config import MD_DIR
 from corpus.keys import key_arg
-from corpus.io import atomic_write_text
+from corpus.pages import write_markdown
 
 # Strip leading heading hashes, emphasis, digits and punctuation so that
 # "## J. W. HULKE ON ORNITHOPSIS. 753" and "756 J. W. HULKE ON ORNITHOPSIS."
@@ -171,7 +171,7 @@ def process(path: Path, args) -> tuple[int, int, list[str]]:
     out = re.sub(r"\n{3,}", "\n\n", "\n".join(keep))
     removed = len(text) - len(out)
     if args.apply and cut:
-        atomic_write_text(path, out)
+        write_markdown(path, out)
     return len(cut), removed, cut
 
 
