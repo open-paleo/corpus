@@ -7,9 +7,10 @@ and must be announced in the pull request that makes it.
 
 ## Finding the corpus
 
-The data repository resolves the corpus as `$OPEN_PALEO_PAPERS_DIR`, else a
-sibling folder `../open-paleo-papers` next to the data repository. The corpus
-resolves the data repository as `$OPEN_PALEO_DATA`, else `../data`.
+Clone the two repositories side by side, as `data` and `corpus`. The data
+repository resolves the corpus as `$OPEN_PALEO_CORPUS` (`$OPEN_PALEO_PAPERS_DIR`
+is still accepted), else the sibling folder `../corpus`. The corpus resolves
+the data repository as `$OPEN_PALEO_DATA`, else `../data`.
 
 ## Files
 
