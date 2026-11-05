@@ -44,7 +44,7 @@ substitution table can recover it — those need vision re-OCR.
 
 Usage
 -----
-    ./.runtime/venv/bin/python scripts/repair_control_glyphs.py --key KEY \\
+    ./.runtime/venv/bin/corpus repair control_glyphs --key KEY \\
         --map 01=U+2212 --map 03=~ --map 04=U+00B0 --map 05=U+00D7
     ... --apply
 """
@@ -243,7 +243,7 @@ def main() -> int:
     TARGETS = BASE_TARGETS + "".join(sorted(set(mapping.values()) - set(BASE_TARGETS)))
     text, left = pdf_text(args.key, mapping)
 
-    print(f"=== repair_control_glyphs — {'APPLY' if args.apply else 'DRY RUN'} ===")
+    print(f"=== corpus repair control_glyphs — {'APPLY' if args.apply else 'DRY RUN'} ===")
     print(f"  {args.key}")
     if left:
         print(f"      ⚠ controls still unmapped: {left}")

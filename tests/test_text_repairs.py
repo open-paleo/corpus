@@ -18,7 +18,7 @@ def run(script, root, *args):
 
 
 def test_ligature_codes():
-    import fix_ligature_substitutions as tool
+    import clean_ligature_codes as tool
     text = join([(1, "A signi®cant change in the ¯ow of the river."),
                  (2, "The ®rst ®eld season; north±south; dated 150.8 ± 4.0 Ma.")])
     assert tool.classify(text)[0] == "faulty"
@@ -29,13 +29,13 @@ def test_ligature_codes():
 
 
 def test_ligature_codes_leave_a_macron_alone():
-    import fix_ligature_substitutions as tool
+    import clean_ligature_codes as tool
     # one spacing macron for a long vowel is not a font fault
     assert tool.classify("The Japanese term Ky¯ory¯ugaku.")[0] == "no-signature"
 
 
 def test_diacritics_fold_after_their_letter():
-    import fold_diacritics as tool
+    import clean_diacritics as tool
     text = join([(1, "Osmo´lska and Apesteguı´a described it."), (2, "Rı´o Negro, Sa~o Paulo.")])
     new, _ = tool.fold(text)
     assert "Osmólska" in new and "Apesteguía" in new and "Río" in new and "São" in new
@@ -43,7 +43,7 @@ def test_diacritics_fold_after_their_letter():
 
 
 def test_gesperrt_rejoins_letterspaced_labels(tmp_path):
-    import despace_gesperrt as tool
+    import clean_gesperrt as tool
     path = tmp_path / "k.md"
     path.write_text(join([(1, "H o l o t y p e : a femur."), (2, "T y p e  l o c a l i t y : Kent.")]),
                     encoding="utf-8")
@@ -55,7 +55,7 @@ def test_gesperrt_rejoins_letterspaced_labels(tmp_path):
 
 
 def test_glued_words_split_on_attested_halves():
-    import resplit_glued_words as tool
+    import clean_glued_words as tool
     df = {"kaiparowits": 40, "formation": 900, "the": 3000, "aguja": 30}
     text = join([(1, "The KaiparowitsFormation and theAguja.")]) + "TheTheTheThe " * 3
     new, n = tool.fix(text, df, {}, force=True)
@@ -64,7 +64,7 @@ def test_glued_words_split_on_attested_halves():
 
 
 def test_transposed_accents_take_the_letter_that_can_carry_them():
-    import fix_transposed_accents as tool
+    import clean_transposed_accents as tool
     text = join([(1, "Neuque´n, the Mus´eum, and Man˜ero.")])
     new, n = tool.fix(text, {"neuquén": 9, "muséum": 9, "mañero": 9})
     assert "Neuquén" in new and "Muséum" in new and "Mañero" in new
@@ -82,7 +82,7 @@ def test_coordinate_repairs_come_from_the_repairs_file(tmp_path):
         "a2001a": [["(79(27#E)", "(79°27′E)"]],
         "b2002a": [["12(30#N", "12°30′N"]],                    # matches twice: skipped
     }, ensure_ascii=False), encoding="utf-8")
-    result = run("repair_coordinate_glyphs.py", tmp_path, "--apply")
+    result = run("clean_coordinates.py", tmp_path, "--apply")
     a = (md / "a2001a.md").read_text(encoding="utf-8")
     assert "(79°27′E)" in a and numbers(a) == [1]
     assert "matches 2 times, skipped" in result.stdout
@@ -92,5 +92,5 @@ def test_coordinate_repairs_come_from_the_repairs_file(tmp_path):
 def test_coordinate_repairs_without_a_file(tmp_path):
     (tmp_path / "markdown").mkdir()
     (tmp_path / "manifest.json").write_text("{}")
-    result = run("repair_coordinate_glyphs.py", tmp_path)
+    result = run("clean_coordinates.py", tmp_path)
     assert result.returncode == 0 and "no recorded repairs" in result.stdout

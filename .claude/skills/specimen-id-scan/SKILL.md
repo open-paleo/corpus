@@ -34,7 +34,7 @@ its number (old prefixes, field numbers, numbers with and without separators).
 Cheap, no API calls, and it frames everything else:
 
 ```bash
-./.runtime/venv/bin/python scripts/scan_specimen_ids.py --series PREFIX
+./.runtime/venv/bin/python scripts/qc_specimen_ids.py --series PREFIX
 ```
 
 Prints every sub-number of that prefix attested anywhere in `markdown/`, with
@@ -59,16 +59,16 @@ Order of usefulness — note the counter-intuitive first point:
 
 ```bash
 # extract from held PDFs and scan, corroborating against a series
-./.runtime/venv/bin/python scripts/scan_specimen_ids.py \
+./.runtime/venv/bin/python scripts/qc_specimen_ids.py \
     --key KEY1 --key KEY2 --extract --series PREFIX
 
 # scan a loose directory of photos (museum shots, a colleague's screenshot)
-./.runtime/venv/bin/python scripts/scan_specimen_ids.py \
+./.runtime/venv/bin/python scripts/qc_specimen_ids.py \
     --images photos/ --series PREFIX
 ```
 
 `--key` scans `pdf_images/{key}/`; `--extract` first runs
-`extract_pdf_images.py` for keys with no images yet.
+`pdf_images.py` for keys with no images yet.
 
 Flags: `--all` prints unmarked images too; `--force` ignores the per-image
 cache at `.runtime/cache/specimen_ids/`; `--keys-file` for batches. Replies are

@@ -33,14 +33,14 @@ def test_control_glyph_readings_expand_to_a_map_per_paper(tmp_path):
     }))
     readings = tmp_path / "readings.json"
     readings.write_text(json.dumps({"AdvP4C4E74": {"01": "U+2212", "03": "~"}}))
-    run("identify_control_glyphs.py", tmp_path, "--expand", str(readings))
+    run("qc_control_glyphs.py", tmp_path, "--expand", str(readings))
     mapping = json.loads((out / "control_glyph_map.json").read_text(encoding="utf-8"))
     # the shape repair control_glyphs --map-file reads: {key: {hex code: glyph}}
     assert mapping == {"a2001a": {"01": "−", "03": "~"}, "b2002a": {"01": "−"}}
 
 
 def test_symbol_glyph_candidates_find_coordinate_runs():
-    import identify_symbol_substitutions as tool
+    import qc_symbol_glyphs as tool
     for text in ("(79(27#E, locality", "at 25 28' 15\" N", "(N49u04957.50/ W"):
         assert tool.COORD.search(text), text
     assert not tool.COORD.search("in 1998 the team")
@@ -64,7 +64,7 @@ def test_spillover_trim_keeps_page_markers(tmp_path):
         (4, "# Seismic anisotropy of the inner core\n\nA neighbouring article."),
     ])
     write_paper(tmp_path, "xu2002a", text, title, "Xu, X.; Norell, M. A.")
-    result = run("trim_reprint_spillover.py", tmp_path, "--key", "xu2002a", "--apply")
+    result = run("clean_spillover.py", tmp_path, "--key", "xu2002a", "--apply")
     assert "trimmed: 1" in result.stdout, result.stdout + result.stderr
     new = (tmp_path / "markdown" / "xu2002a.md").read_text(encoding="utf-8")
     assert "chameleons" not in new and "Seismic anisotropy" not in new
@@ -78,7 +78,7 @@ def test_spillover_trim_refuses_a_correspondence_to_someone_else(tmp_path):
     text = (f"# {title}\n\nBody.\n\nCorrespondence and requests for materials should be "
             "addressed to Q.Z.\n\n# Another paper\n\nText.\n")
     write_paper(tmp_path, "xu2002a", text, title, "Xu, X.; Norell, M. A.")
-    result = run("trim_reprint_spillover.py", tmp_path, "--key", "xu2002a", "--apply")
+    result = run("clean_spillover.py", tmp_path, "--key", "xu2002a", "--apply")
     assert "refused" in result.stdout and "no author matches" in result.stdout
     assert (tmp_path / "markdown" / "xu2002a.md").read_text(encoding="utf-8") == text
 
@@ -106,7 +106,7 @@ def test_translation_audit_flags_a_short_chunk(tmp_path):
         {"hash": chunk_cache_key(chunks[1]), "translated": "x", "stop_reason": "end_turn"}))
     (tmp_path / "manifest.json").write_text(json.dumps(
         {"ab2000a": {"conversion": {"translated_from": "es"}}}))
-    result = run("audit_translation_completeness.py", tmp_path, check=False)
+    result = run("qc_translations.py", tmp_path, check=False)
     assert result.returncode == 1
     assert "short-chunk(chunk-0002.json" in result.stdout
     assert "chunk-0000" not in result.stdout and "chunk-0001" not in result.stdout

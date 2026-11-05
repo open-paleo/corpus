@@ -79,15 +79,15 @@ Match every ASCII orphan with artifacts by DOI first, title second, reading the 
 
 ## Bib refresh
 
-### refresh_manifest.py: run once, diff against HEAD
+### manifest_refresh.py: run once, diff against HEAD
 The script applies everything on the first run; a second run prints all zeros. Capture full output once (the skill uses `tee`). If the first output was lost: `git checkout HEAD -- manifest.json`, then run exactly once. For the net effect, compare `git show HEAD:manifest.json` with the working copy (added/removed keys, `in_bib` flips). The raw diff is huge because every entry's `bootstrapped_at` is re-stamped; filter it out.
 
 ### Renames, year corrections and caught-up z-orphans: migrate each dropped/new pair
-The data repo never aliases keys, and `refresh_manifest.py` does not migrate artifacts: it adds new bib keys as unacquired entries and keeps the old ones as `in_bib=False`. So a year or surname correction and a `z` orphan the bib finally caught up with both appear as a dropped/new pair. Tell for a correction: the orphan's `year` field already disagrees with its key. A rename can cascade through a batch, so check what wants a vacated key.
+The data repo never aliases keys, and `manifest_refresh.py` does not migrate artifacts: it adds new bib keys as unacquired entries and keeps the old ones as `in_bib=False`. So a year or surname correction and a `z` orphan the bib finally caught up with both appear as a dropped/new pair. Tell for a correction: the orphan's `year` field already disagrees with its key. A rename can cascade through a batch, so check what wants a vacated key.
 - Pair by DOI; else by whether the bib title appears as a contiguous run in the markdown BODY (not the first heading, which catches journal banners and translated titles, and not author+year; many z-orphans have `title='?'`). Targets are not always `a`.
 - Check the destination path is free (a tracked file there is invisible to `git status` and `mv` overwrites it).
 - Move per pair: PDF, markdown, `.original.md` backups, `.runtime/cache/vision/{key}`, supplementary PDF+markdown (rewriting inner paths), and the manifest's `acquisition`, `conversion`, `supplementary`, `annotations`, `availability`, `paper_watch`, `bhl*`, `closed_access`; fix `pdf_path`/`markdown_path`; delete the old entry. New keys carry a placeholder acquisition dict with all-None fields, so test `.get("source")`, not truthiness.
-- Prove completeness against HEAD: added vs removed keys map 1:1 to your migration list, and no key flips `in_bib` True→False. The "Dropped from bib" list is a standing total, not the delta. Then prune stale FTS rows and `indexer.py --rebuild`.
+- Prove completeness against HEAD: added vs removed keys map 1:1 to your migration list, and no key flips `in_bib` True→False. The "Dropped from bib" list is a standing total, not the delta. Then prune stale FTS rows and `index.py --rebuild`.
 
 ### A refresh that renames many keys at once: match by identity, finish with a duplicate audit
 When a refresh drops and adds keys by the hundred, the transform is not uniform (not simply `+a`). Match each dropped orphan with artifacts to a new blank key by DOI, else by (first author, title slug, year), and migrate as above with `os.rename` then `git add` (git detects identical-content renames). `-b`/`-c` orphans are distinct papers; never migrate them onto `base+a`. Suffix gaps (a `d` key with no `a`) are normal.
@@ -106,9 +106,9 @@ All look identical here (`in_bib=False`, blank citation), but the summary line d
 `references.bib` types each entry: `@phdthesis`/`@mastersthesis` with `school` (habilitation adds `type = {Habilitation thesis}`), `@book` with `publisher`, `@misc` for a work with no publisher, and a dissertation abstract (avtoreferat) as `@misc` with `howpublished = {Dissertation abstract, <school>}`. Anything that reads `journal or booktitle` comes up blank for theses and books. Use `corpus.bib.citation_venue()` for a display/search venue and `corpus.bib.is_thesis()` to detect a thesis.
 
 ### The incremental indexer re-indexes on citation or genera[] changes
-The FTS `title`, `authors`, `journal` and `genera` columns come from the manifest. The indexer compares each key's stored metadata row with the manifest as well as the markdown's mtime+size, so plain `indexer.py` after `/refresh-bib` is enough. `--rebuild` is the fallback if a key looks wrong.
+The FTS `title`, `authors`, `journal` and `genera` columns come from the manifest. The indexer compares each key's stored metadata row with the manifest as well as the markdown's mtime+size, so plain `index.py` after `/refresh-bib` is enough. `--rebuild` is the fallback if a key looks wrong.
 
-### After a bulk rename, run `indexer.py --rebuild` and verify
+### After a bulk rename, run `index.py --rebuild` and verify
 `git mv`/`os.rename` preserve mtime and size, so the incremental indexer can skip a renamed file after its old row was pruned, and some new keys end up missing from the index. For bulk renames use `--rebuild`; for one key, `touch markdown/{newkey}.md` and run the incremental indexer. Either way, query the index for every new key and confirm no old-key rows remain.
 
 ## Manifest and held state

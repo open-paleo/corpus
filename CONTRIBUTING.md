@@ -2,7 +2,7 @@
 
 Thank you for improving the corpus tools. Bug reports, fixes to the
 conversion and repair scripts, new publisher patterns for
-`strip_frontmatter.py` and better documentation are all welcome.
+`clean_frontmatter.py` and better documentation are all welcome.
 
 ## Never submit content from publications
 

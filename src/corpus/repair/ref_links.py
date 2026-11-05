@@ -30,10 +30,10 @@ Identification is exact rather than heuristic, on two independent grounds:
 That second check is what makes a corpus-wide sweep safe: nothing is rewritten
 on the strength of the pattern alone.
 
-    scripts/repair_marker_ref_links.py --audit            # what's damaged
-    scripts/repair_marker_ref_links.py --key KEY          # dry run
-    scripts/repair_marker_ref_links.py --key KEY --apply
-    scripts/repair_marker_ref_links.py --all --apply      # whole corpus
+    corpus repair ref_links --audit            # what's damaged
+    corpus repair ref_links --key KEY          # dry run
+    corpus repair ref_links --key KEY --apply
+    corpus repair ref_links --all --apply      # whole corpus
 
 Two related marker defects are deliberately NOT touched here, because unlike
 the above they are not recoverable by convention and they corrupt body text

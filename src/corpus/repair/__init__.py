@@ -3,7 +3,7 @@
 Each module exposes `repair(doc, md, key, quiet=...) -> (new_md, stats)`: an
 open PDF (corpus.pdf.text) and the markdown in, the repaired markdown out,
 no file I/O. Its own `main()` is the per-repair command (`corpus repair dash`,
-or `scripts/repair_dash_font_substitutions.py`).
+or `corpus repair dash`).
 
 `run_all()` (`corpus repair all`) runs every repair on each paper in ONE pass:
 the markdown is read once, the PDF is opened once and only if some repair

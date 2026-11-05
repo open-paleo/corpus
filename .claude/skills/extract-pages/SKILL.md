@@ -46,7 +46,7 @@ If the requested pages would resolve to more than ~80% of the source PDF, **ask 
 ## 3. Extract
 
 ```bash
-./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}"
+./.runtime/venv/bin/python scripts/pdf_extract_pages.py {key} "{spec}"
 ```
 
 The script:
@@ -68,21 +68,21 @@ Output reports source page count + size, the resolved page list, output page cou
 # never commits PDFs; an archive may not have committed this one: check
 # `git log -- pdfs/{key}.pdf`): keep it, under a descriptive name, outside
 # the repository. Without it a whole monograph cut down to one chapter is gone.
-./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" \
+./.runtime/venv/bin/python scripts/pdf_extract_pages.py {key} "{spec}" \
     --keep-source "/path/outside/the/repo/{Author} {year} - {short title}.pdf"
 
 # Tune the size-limit warning threshold (no behavior change beyond the warning):
-./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" \
+./.runtime/venv/bin/python scripts/pdf_extract_pages.py {key} "{spec}" \
     --soft-limit-mb 120
 
 # Rewrite the PDF but leave manifest.json untouched (a PDF that isn't a
 # manifest key). The page range is then recorded nowhere: put it in the
 # commit message.
-./.runtime/venv/bin/python scripts/extract_pdf_pages.py {key} "{spec}" --no-manifest
+./.runtime/venv/bin/python scripts/pdf_extract_pages.py {key} "{spec}" --no-manifest
 
 # Supplementary data: target supplementary/{parent}-{name}.pdf instead of pdfs/.
 # Here the positional key is the full supplementary stem {parent}-{name}.
-./.runtime/venv/bin/python scripts/extract_pdf_pages.py {parent}-{name} "{spec}" \
+./.runtime/venv/bin/python scripts/pdf_extract_pages.py {parent}-{name} "{spec}" \
     --supplementary
 ```
 
@@ -104,7 +104,7 @@ After extraction, the on-disk PDF is different from what was previously converte
 Two cases:
 
 - **Acquisition was never run / no prior conversion**: the user's typical flow is `/intake` next, listing `{key}` as a fresh intake.
-- **Prior conversion existed (e.g., from a full-volume marker run)**: the markdown is now stale. Treat as a *replacement* re-intake: tell the user that `{key}` should be in their next `/intake` re-conversion list. Don't invalidate the conversion entry yourself — `/intake`'s Path D (replacement re-convert with `--force`) handles it. A key already converted by vision OCR needs `convert_with_vision.py --key {key} --force`: without `--key` the script skips it, and without `--force` the page cache, which is keyed by page number, returns the old volume's pages.
+- **Prior conversion existed (e.g., from a full-volume marker run)**: the markdown is now stale. Treat as a *replacement* re-intake: tell the user that `{key}` should be in their next `/intake` re-conversion list. Don't invalidate the conversion entry yourself — `/intake`'s Path D (replacement re-convert with `--force`) handles it. A key already converted by vision OCR needs `convert_vision.py --key {key} --force`: without `--key` the script skips it, and without `--force` the page cache, which is keyed by page number, returns the old volume's pages.
 
 ## 5. Reporting
 

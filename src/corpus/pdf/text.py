@@ -41,7 +41,7 @@ output) see the same text on both backends:
 - pdfium writes a soft line-end hyphen as U+0002 and flags it with
   FPDFText_IsHyphen, and drops the line break that follows it. It comes back
   here as "-" followed by a line end, as PyMuPDF has it. This matters:
-  U+0002 is also a real control-character glyph that repair_control_glyphs
+  U+0002 is also a real control-character glyph that corpus repair control_glyphs
   looks for, and only flagged hyphens are converted.
 - pdfium inserts generated characters (spaces and line breaks it inferred).
   Generated line breaks end a line; generated spaces are kept as spaces, which
@@ -54,7 +54,7 @@ block/line/span order (all the repairs) are unaffected.
 text(): PyMuPDF returns its own block-ordered text with marks where it put
 them; pdfium returns line-ordered text after mark re-placement. A script
 that slices text() by offset to take context around a match (as
-restore_symbol_glyphs does) therefore sees different left/right context on
+corpus repair symbols does) therefore sees different left/right context on
 the two backends; compare by content, not by offset, across backends.
 
 Coordinates are converted to PyMuPDF's convention (origin at the top left of

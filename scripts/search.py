@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # corpus-command: search | query the search index
 """
-Query CLI over the FTS5 index built by indexer.py.
+Query CLI over the FTS5 index built by index.py.
 
 FTS5 query syntax:
   word                       — match (all words required by default)
@@ -58,7 +58,7 @@ def main() -> int:
     args = ap.parse_args()
 
     if not DB.exists():
-        print(f"ERROR: index not found at {DB}. Run scripts/indexer.py first.", file=sys.stderr)
+        print(f"ERROR: index not found at {DB}. Run scripts/index.py first.", file=sys.stderr)
         return 2
 
     con = sqlite3.connect(DB)

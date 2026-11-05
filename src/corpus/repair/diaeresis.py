@@ -17,8 +17,8 @@ mark belongs to, so this script reads the answer from the PDF:
 Dry run by default; --apply writes. Idempotent: a repaired file has no "€"
 left next to a mapped word.
 
-    ./.runtime/venv/bin/python scripts/repair_diaeresis_euro.py --all
-    ./.runtime/venv/bin/python scripts/repair_diaeresis_euro.py --key KEY --apply
+    ./.runtime/venv/bin/corpus repair diaeresis --all
+    ./.runtime/venv/bin/corpus repair diaeresis --key KEY --apply
 """
 import argparse
 import re

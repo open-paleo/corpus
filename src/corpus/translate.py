@@ -1,7 +1,7 @@
 """Chunking for translation: how a paper is cut into pieces for the model, and put back.
 
-Shared by scripts/translate_markdown.py, which translates, and
-scripts/audit_translation_completeness.py, which re-chunks a source exactly as
+Shared by scripts/convert_translate.py, which translates, and
+scripts/qc_translations.py, which re-chunks a source exactly as
 the translator did to measure each cached translation against its own text.
 Nothing here needs the translation dependencies.
 """

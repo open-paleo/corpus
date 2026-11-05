@@ -2,7 +2,7 @@
 """
 Initial build: one manifest.json entry per references.bib key. CLOBBERS any
 existing manifest (acquisition and conversion state included); after the first
-build use refresh_manifest.py.
+build use manifest_refresh.py.
 
 Reads:  the bib from CORPUS_BIB_SOURCE (corpus.bib.bib_path: the data repo
         beside this one, a bundled copy, or a download), and which genera and
@@ -37,7 +37,7 @@ def main() -> int:
     args = ap.parse_args()
     if MANIFEST.exists() and manifest_load(track=False) and not args.force:
         print(f"{MANIFEST} already has entries; bootstrap.py would overwrite their "
-              "acquisition and conversion state. Use refresh_manifest.py, or --force.",
+              "acquisition and conversion state. Use manifest_refresh.py, or --force.",
               file=sys.stderr)
         return 2
     bib_file = bib_path(refresh=True)

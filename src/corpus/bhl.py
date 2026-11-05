@@ -2,8 +2,8 @@
 
 Where its data lives (DUMPS, DB), the volume (Item) matcher used by
 bhl_match.py and bhl_item_match.py, and the JP2 stitch used by bhl_fetch.py
-and stitch_bhl_pdfs.py. Scripts: bhl_setup, bhl_index, bhl_match,
-bhl_item_match, bhl_fetch, stitch_bhl_pdfs.
+and bhl_stitch.py. Scripts: bhl_setup, bhl_index, bhl_match,
+bhl_item_match, bhl_fetch, bhl_stitch.
 """
 from __future__ import annotations
 

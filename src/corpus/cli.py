@@ -48,8 +48,13 @@ def commands(scripts: Path | None = None) -> dict[tuple[str, ...], tuple[str, st
         if not m:
             continue
         words = tuple(m.group(1).split())
-        if words[0] in BUILT_IN:
-            raise SystemExit(f"corpus: {path.name} declares built-in command {words[0]!r}")
+        # `repair` takes script commands beside its modules (repairs that read
+        # the PDF's text layer but are not corpus.repair modules), as long as
+        # the name is not one of the modules or `all`.
+        shares_repair = (len(words) == 2 and words[0] == "repair"
+                         and words[1] not in ("all", *REPAIR_NAMES))
+        if words[0] in BUILT_IN and not shares_repair:
+            raise SystemExit(f"corpus: {path.name} declares built-in command {' '.join(words)!r}")
         if words in found:
             raise SystemExit(f"corpus: {' '.join(words)!r} declared by both "
                              f"{found[words][0]}.py and {path.name}")
@@ -109,8 +114,11 @@ def main(argv: list[str] | None = None) -> int:
             from corpus.repair import run_all
             return run_all(rest)
         if name not in REPAIR_NAMES:
-            print(f"corpus: unknown repair {name!r} (one of: all, {', '.join(REPAIR_NAMES)})",
-                  file=sys.stderr)
+            scripted = commands()
+            if ("repair", name) in scripted:
+                return run_script(scripted[("repair", name)][0], rest)
+            names = ["all", *REPAIR_NAMES, *(w[1] for w in scripted if w[0] == "repair")]
+            print(f"corpus: unknown repair {name!r} (one of: {', '.join(names)})", file=sys.stderr)
             return 2
         import importlib
         module = importlib.import_module(f"corpus.repair.{name}")

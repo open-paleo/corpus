@@ -25,9 +25,9 @@ things in different families, so the family cannot be dropped from the key.
 Every entry in GLYPHS was read off a rendered page crop before being added.
 Unknown pairs are reported and left alone.
 
-    scripts/restore_symbol_glyphs.py --key KEY                   # dry run
-    scripts/restore_symbol_glyphs.py --key KEY --apply
-    scripts/restore_symbol_glyphs.py --all --apply               # whole corpus
+    corpus repair symbols --key KEY                   # dry run
+    corpus repair symbols --key KEY --apply
+    corpus repair symbols --all --apply               # whole corpus
 """
 from __future__ import annotations
 
