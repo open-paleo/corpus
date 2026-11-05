@@ -11,7 +11,7 @@ pipeline works; these files cover the traps and the decisions.
 | [conversion.md](conversion.md) | Converting, re-OCRing, translating or repairing markdown. |
 | [intake-manifest-keys.md](intake-manifest-keys.md) | Running `/intake` or `/refresh-bib`, editing `manifest.json`, naming or renaming keys; also shell and environment traps. |
 | [code.md](code.md) | Changing a script or the `corpus` package: where shared code lives, how to test a script that writes, what to run before committing. |
-| [acquisition.md](acquisition.md) | Finding or fetching a paper: free routes (BHL, archive.org, Europe PMC/PMC, public archives), fetch-tier pitfalls, DjVu and viewer recipes. |
+| [acquisition.md](acquisition.md) | Finding or fetching a paper: free routes (BHL, archive.org, Europe PMC/PMC, public archives), fetch-tier pitfalls, DjVu volumes. |
 
 A private archive built on this repository keeps its own notes beside these
 (findings, acquisition leads, a work queue) and indexes them in
