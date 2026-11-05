@@ -7,7 +7,7 @@ For every manifest entry with a DOI that has not yet been acquired:
   1. GET api.unpaywall.org/v2/{doi}?email=...
   2. If best_oa_location.url_for_pdf is set, download it. An open-access
      record with no PDF link is recorded as unpaywall_no_pdf_link, for the
-     PMC (fetch_pmc_oa.py) and landing-page fetchers to try.
+     PMC (fetch_pmc.py) and landing-page fetchers to try.
   3. Verify the response is a real PDF (magic bytes, size > 1 KB).
   4. Save to pdfs/{citation_key}.pdf and update manifest atomically.
   5. Append the raw API response and outcome to .runtime/logs/unpaywall.jsonl.

@@ -56,7 +56,7 @@ def corpus(tmp_path, monkeypatch):
     (tmp_path / "supplementary" / "smith2001a-matrix.pdf").write_bytes(b"%PDF-1.4 supp")
     (tmp_path / ".env").write_text("SECRET=1", encoding="utf-8")
     (tmp_path / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-    subprocess.run([sys.executable, str(REPO / "scripts" / "indexer.py")], check=True,
+    subprocess.run([sys.executable, str(REPO / "scripts" / "index.py")], check=True,
                    capture_output=True, env={**os.environ, "CORPUS_ROOT": str(tmp_path)})
     for name, rel in [("MANIFEST", "manifest.json"), ("MD_DIR", "markdown"),
                       ("SUPP_MD_DIR", "markdown/supplementary"), ("PDF_DIR", "pdfs"),

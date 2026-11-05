@@ -8,7 +8,7 @@ description: Stitch source JPGs/PNGs from source_images/{key}/ into a single pdf
 > conventions) and is never part of the public repository; where it and this
 > file differ, it wins for this checkout.
 
-Build a single `pdfs/{key}.pdf` from a directory of page-image files (JPGs, PNGs, TIFFs) the user has dropped under `source_images/{key}/`. The standard handoff before `/intake` for keys whose source comes from page photos, library scans, screenshots, etc. (not BHL — those go through `stitch_bhl_pdfs.py`).
+Build a single `pdfs/{key}.pdf` from a directory of page-image files (JPGs, PNGs, TIFFs) the user has dropped under `source_images/{key}/`. The standard handoff before `/intake` for keys whose source comes from page photos, library scans, screenshots, etc. (not BHL — those go through `bhl_stitch.py`).
 
 ## 1. Confirm the input
 
@@ -45,10 +45,10 @@ The script writes a PDF either way, but only updates `manifest[key].acquisition`
 ## 3. Stitch
 
 ```bash
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key}
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key}
 ```
 
-Default behavior: **lossless embed via `corpus.pdf.build`** (img2pdf + pikepdf; the same path as `stitch_bhl_pdfs.py`'s BHL JP2 stitching). Each input image becomes one page: JPEG and JP2 streams are embedded unchanged, PNG/TIFF losslessly — no quality loss, fast.
+Default behavior: **lossless embed via `corpus.pdf.build`** (img2pdf + pikepdf; the same path as `bhl_stitch.py`'s BHL JP2 stitching). Each input image becomes one page: JPEG and JP2 streams are embedded unchanged, PNG/TIFF losslessly — no quality loss, fast.
 
 After stitching, the script reports the output PDF's size. If lossless output exceeds `--soft-limit-mb` (default **90 MB**), the script automatically re-stitches with a **re-encoded fallback**:
 
@@ -61,7 +61,7 @@ Why 90 MB threshold: the upstream git host enforces a soft 100-150 MB cap on LFS
 ### Photocopier variant (HEIC volume photos with a yellow cast)
 
 When the source is iPhone/HEIC **photos of a physical volume** — warm/yellow
-paper, uneven lighting — use `scripts/photocopier_stitch.py` instead. It
+paper, uneven lighting — use `scripts/pdf_photocopier.py` instead. It
 applies a **grayscale flat-field illumination normalization** (divide each
 page by a large-blur estimate of its own background → cancels the paper cast
 + lighting gradient → contrast-stretch so paper clips to white) before
@@ -71,9 +71,9 @@ capped at 2400 px, so the OCR-clean pages also convert cheaply at intake.
 
 ```bash
 # whole photographed paper:
-./.runtime/venv/bin/python scripts/photocopier_stitch.py --key {key}
+./.runtime/venv/bin/python scripts/pdf_photocopier.py --key {key}
 # a chapter within a multi-paper volume — inclusive sorted filename range:
-./.runtime/venv/bin/python scripts/photocopier_stitch.py --key {key} \
+./.runtime/venv/bin/python scripts/pdf_photocopier.py --key {key} \
     --select IMG_0612 IMG_0620
 # tunables (rarely needed; defaults tuned on 1930s-70s letterpress):
 #   --white 0.93 --black 0.55 --gamma 1.15 --max-dim 2400 --jpeg-q 88
@@ -82,30 +82,30 @@ capped at 2400 px, so the OCR-clean pages also convert cheaply at intake.
 
 Always preview the effect on one page (and confirm the `--select` range maps
 to the right chapter, checking printed page numbers) before running the full
-set. Same manifest-annotation behaviour as `stitch_source_images.py`.
+set. Same manifest-annotation behaviour as `pdf_stitch.py`.
 
 ### Common variations
 
 ```bash
 # Force re-encoding from the start (skip lossless attempt — useful when you
 # already know inputs are huge or heterogeneous and you want predictability):
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key} --reencode
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key} --reencode
 
 # Tune the soft limit (e.g., user knows the upstream is being lenient today):
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key} --soft-limit-mb 120
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key} --soft-limit-mb 120
 
 # Override re-encode parameters for higher fidelity (larger PDF):
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key} --reencode --max-dim 3000 --jpeg-q 90
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key} --reencode --max-dim 3000 --jpeg-q 90
 
 # Disable the auto fallback entirely (commit lossless even if huge — only do
 # this if you'll handle the LFS overage manually, e.g. host-side configuration):
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key} --no-reencode
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key} --no-reencode
 
 # Re-stitch over an existing PDF:
-./.runtime/venv/bin/python scripts/stitch_source_images.py --key {key} --force
+./.runtime/venv/bin/python scripts/pdf_stitch.py --key {key} --force
 
 # Stitch all keys with images under source_images/ (omit --key):
-./.runtime/venv/bin/python scripts/stitch_source_images.py
+./.runtime/venv/bin/python scripts/pdf_stitch.py
 ```
 
 ## 4. Manifest update

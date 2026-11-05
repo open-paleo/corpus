@@ -15,7 +15,7 @@ mark or as a C0 control character that marker drops outright:
     México              ->  M<0x01>exico         (or "M exico")
     Amparo à Pesquisa   ->  Amparo <0x03>a Pesquisa
 
-`restore_symbol_glyphs.py` keeps this behind `--accents`, off by default,
+`corpus repair symbols` keeps this behind `--accents`, off by default,
 because **reading order does not identify the base letter.** The accent
 can be emitted before or after the letter it belongs to, and the surrounding
 run gives no reliable clue — in `Educaç~ao` the tilde sits after `ç` but
@@ -36,8 +36,8 @@ crop of the line it comes from. Widening this to the rest of the corpus means
 identifying each new paper's codes the same way — the geometry generalises, the
 code-to-accent mapping does not.
 
-    scripts/repair_accent_glyphs.py --key KEY
-    scripts/repair_accent_glyphs.py --key KEY --apply
+    corpus repair accents --key KEY
+    corpus repair accents --key KEY --apply
 """
 from __future__ import annotations
 

@@ -7,7 +7,7 @@
 #
 # --hooks sets core.hooksPath to .githooks/: pre-commit refuses secrets,
 # pre-push refuses github.com when `git config archive.private true`, and
-# post-merge re-runs scripts/indexer.py after a pull that changed markdown.
+# post-merge re-runs scripts/index.py after a pull that changed markdown.
 # That last one runs code from whatever was merged, so it is opt-in.
 #
 # PYTHON picks the interpreter (default: the first of python3.13, python3.12,
@@ -77,7 +77,7 @@ fi
 
 # 4. FTS5 search index (regenerable from markdown/).
 say "Building FTS5 search index from markdown/"
-.runtime/venv/bin/python scripts/indexer.py
+.runtime/venv/bin/python scripts/index.py
 
 # 5. Tracked git hooks (opt-in).
 if [ "$HOOKS" = 1 ]; then

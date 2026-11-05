@@ -5,11 +5,11 @@
 # Regenerable via scripts/bootstrap.sh + scripts/bhl_setup.py.
 .runtime/
 
-# FTS5 index — regenerable from markdown/ via scripts/indexer.py.
+# FTS5 index — regenerable from markdown/ via scripts/index.py.
 index/
 
 # Embedded raster images ripped from PDFs — regenerable from pdfs/ via
-# scripts/extract_pdf_images.py.
+# scripts/pdf_images.py.
 pdf_images/
 
 # BHL page images (JP2) downloaded by scripts/bhl_fetch.py, stitched into
@@ -17,7 +17,7 @@ pdf_images/
 bhl_images/
 
 # User-provided source images for stitching into pdfs/ via
-# scripts/stitch_source_images.py. One subdir per citation key.
+# scripts/pdf_stitch.py. One subdir per citation key.
 source_images/
 
 # macOS + atomic-write artifacts.

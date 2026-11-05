@@ -39,10 +39,10 @@ and "45 cm high × 30–32 cm wide" is a different measurement from "approximate
 30-32 cm wide". `G` in "(99.5 G 1.5 Ma)" is a plus-minus on a radiometric age.
 Every mapping in both tables was read off a rendered crop, not inferred.
 
-    scripts/repair_dash_font_substitutions.py --audit        # scope, no writes
-    scripts/repair_dash_font_substitutions.py --key KEY
-    scripts/repair_dash_font_substitutions.py --key KEY --apply
-    scripts/repair_dash_font_substitutions.py --all --apply
+    corpus repair dash --audit        # scope, no writes
+    corpus repair dash --key KEY
+    corpus repair dash --key KEY --apply
+    corpus repair dash --all --apply
 """
 from __future__ import annotations
 

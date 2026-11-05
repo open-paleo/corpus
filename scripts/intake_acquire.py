@@ -6,7 +6,7 @@ PDFs that the user has dropped into pdfs/.
 
 For each key:
   - If not in manifest, create a stub entry with in_bib=False and blank
-    citation/year/doi/genera/clades. (refresh_manifest.py will overlay
+    citation/year/doi/genera/clades. (manifest_refresh.py will overlay
     bib metadata once the upstream catches up.)
   - Set acquisition = {source: manual, url: None, pdf_path, fetched_at,
     previous_source: <prior source if any>}. The previous_source field
@@ -84,7 +84,7 @@ def main() -> int:
             skipped.append((k, "no pdf on disk"))
             continue
         if k not in manifest:
-            # Stub orphan: in_bib False, blank citation until refresh_manifest
+            # Stub orphan: in_bib False, blank citation until manifest_refresh
             # overlays the bib entry.
             entry = entry_skeleton(in_bib=False, citation={})
             manifest[k] = entry

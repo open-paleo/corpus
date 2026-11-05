@@ -1,6 +1,6 @@
 """The search index: its columns, incremental updates and rebuilds.
 
-Each test runs scripts/indexer.py in a subprocess with CORPUS_ROOT pointing at
+Each test runs scripts/index.py in a subprocess with CORPUS_ROOT pointing at
 a temporary corpus, since corpus.config fixes its paths at import.
 """
 import json
@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-INDEXER = REPO / "scripts" / "indexer.py"
+INDEXER = REPO / "scripts" / "index.py"
 SEARCH = REPO / "scripts" / "search.py"
 
 OLD_SCHEMA = """CREATE VIRTUAL TABLE papers USING fts5(

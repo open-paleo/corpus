@@ -1,7 +1,7 @@
 """Page layout from a rendered image: where a two-column page's gutter is.
 
 Used to cut a page into pieces for vision OCR only on whitespace
-(reocr_nooverlap.py, `corpus convert recover`).
+(convert_recover.py, `corpus convert recover`).
 """
 from __future__ import annotations
 

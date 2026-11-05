@@ -9,7 +9,7 @@ need an OCR escalation.
 Triage rules (from docs/notes/conversion.md, "Stub markdown"):
 
   - 0 KB or <200 B/page over >10 pages → image-only scan
-    (set conversion.vision_ocr_needed=True and run convert_with_vision.py)
+    (set conversion.vision_ocr_needed=True and run convert_vision.py)
   - <1000 B/page but page count plausibly real for a short paper →
     eyeball the markdown body. Could be a genuinely-short 1900s paper,
     a T&F cover-boilerplate stub, or marker CID-garbage. Searches for
@@ -124,7 +124,7 @@ def print_table(rows: list[QcRow]) -> int:
         print(f"=== {nonok} key(s) flagged for follow-up ===")
         print("Recommended next step:")
         print("  for image_only / tf_cover_stub: rerun via /intake §7")
-        print("  (set conversion.vision_ocr_needed=True; run convert_with_vision.py)")
+        print("  (set conversion.vision_ocr_needed=True; run convert_vision.py)")
         print("  or pass `--vision-ocr REASON` to scripts/intake_acquire.py upfront")
     return nonok
 

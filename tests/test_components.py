@@ -128,7 +128,7 @@ def test_bare_font_strips_subset_tag_only():
 # ---- script helpers -----------------------------------------------------
 
 def test_fused_call_word_and_call_forms():
-    import repair_fused_superscript_refs as R
+    from corpus.repair import fused_calls as R
     assert R.word_forms("BELLARD IN I")[:2] == ["INI", "BELLARDINI"]
     assert "Rogers" in R.word_forms("Rubilar-Ro´gers")
     assert "Li" in R.word_forms("NingLi") and "Escaso" in R.word_forms("andFernandoEscaso")
@@ -201,6 +201,24 @@ def test_every_declared_command_is_unique_and_its_script_exists():
         assert words in table, words
     for script, _ in table.values():
         assert (scripts / f"{script}.py").is_file()
+
+
+def test_scripts_are_named_after_their_command():
+    from pathlib import Path
+    from corpus import cli
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    for words, (script, _) in cli.commands(scripts).items():
+        assert script == "_".join(words).replace("-", "_"), (words, script)
+
+
+def test_repair_group_takes_script_commands_but_not_module_names(tmp_path):
+    import pytest
+    from corpus import cli
+    (tmp_path / "repair_extra.py").write_text("# corpus-command: repair extra | x\n")
+    assert ("repair", "extra") in cli.commands(tmp_path)
+    (tmp_path / "repair_dash.py").write_text("# corpus-command: repair dash | shadows a module\n")
+    with pytest.raises(SystemExit):
+        cli.commands(tmp_path)
 
 
 def test_bib_source_auto_order(tmp_path, monkeypatch):
@@ -283,7 +301,7 @@ def test_failed_source_sentinels():
 @pytest.fixture
 def lig():
     pytest.importorskip("wordfreq")
-    import fix_dropped_ligatures as L
+    import clean_ligatures as L
     return L, L.WordFreqLexicon(domain={"theropoda", "midshaft"})
 
 
@@ -341,7 +359,7 @@ def test_discover_lists_fetched_but_unconverted(tmp_path, monkeypatch):
 
 
 def test_pmc_https_url():
-    import fetch_pmc_oa as F
+    import fetch_pmc as F
     url, md5 = F.https_url("s3://pmc-oa-opendata/PMC1.1/PMC1.1.pdf?md5=abc")
     assert url == "https://pmc-oa-opendata.s3.amazonaws.com/PMC1.1/PMC1.1.pdf" and md5 == "abc"
 
@@ -414,7 +432,7 @@ def test_extract_pdf_images_skip_force_and_swap(tmp_path, monkeypatch):
     import io as _io
     import sys
     from PIL import Image
-    import extract_pdf_images as X
+    import pdf_images as X
     from corpus.pdf.build import images_to_pdf
     pdfs, out = tmp_path / "pdfs", tmp_path / "pdf_images"
     pdfs.mkdir()

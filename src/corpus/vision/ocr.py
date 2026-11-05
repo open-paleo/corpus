@@ -1,7 +1,7 @@
 """Vision OCR of one page image: the prompts, the request, the cached result.
 
-Shared by convert_with_vision.py, ocr_spread_pdf.py, tile_ocr_poster.py and
-reocr_nooverlap.py (ocr_fragment: a piece of a page, for content-filter
+Shared by convert_vision.py, convert_spread.py, convert_poster.py and
+convert_recover.py (ocr_fragment: a piece of a page, for content-filter
 recovery).
 """
 from __future__ import annotations

@@ -62,7 +62,7 @@ markdown/{key}.md                   Markdown (marker / claude-vision)
 markdown/{key}.original.md          original language, when {key}.md is a translation
 markdown/supplementary/{key}-{name}.md
 source_images/{key}/                page photos or scans to stitch into a PDF
-index/papers.db                     FTS5 index (scripts/indexer.py)
+index/papers.db                     FTS5 index (scripts/index.py)
 condensed/                          written by the data repository's agents
 manifest.json                       citation_key -> metadata (locked, atomic writes)
 .runtime/                           venv, caches (vision OCR per page), logs
@@ -81,60 +81,60 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 
 | Command | Script | Step |
 |---|---|---|
-| `corpus manifest refresh` | `refresh_manifest.py` | Merge the bib into the manifest; preserves acquisition and conversion |
-| `corpus manifest refresh-dois` | `refresh_dois.py` | DOI-only refresh |
+| `corpus manifest refresh` | `manifest_refresh.py` | Merge the bib into the manifest; preserves acquisition and conversion |
+| `corpus manifest refresh-dois` | `manifest_refresh_dois.py` | DOI-only refresh |
 | | `bootstrap.py` | Rebuild the manifest from scratch (**clobbers state**: refuses a non-empty manifest without `--force`) |
 | `corpus status` | | Held / converted / indexed / missing counts; `--missing` lists keys |
 | `corpus fetch unpaywall` | `fetch_unpaywall.py` | Tier 1: open-access PDFs by DOI via Unpaywall |
 | `corpus fetch unpaywall-by-doi` | `fetch_unpaywall_by_doi.py` | Same, for key/DOI lists not yet in the manifest |
-| `corpus fetch pmc` | `fetch_pmc_oa.py` | Tier 2: PMC Open Access subset by DOI (Europe PMC lookup, NCBI's public bucket) |
+| `corpus fetch pmc` | `fetch_pmc.py` | Tier 2: PMC Open Access subset by DOI (Europe PMC lookup, NCBI's public bucket) |
 | `corpus fetch oa-direct` | `fetch_oa_direct.py` | Tier 3: DOI landing page → `citation_pdf_url` (`--browser-ua` opt-in) |
-| `corpus fetch retry-unpaywall` | `retry_unpaywall.py` | Retry Unpaywall download failures, saving any HTML the URL serves (`--browser-ua` opt-in) |
+| `corpus fetch retry-unpaywall` | `fetch_retry_unpaywall.py` | Retry Unpaywall download failures, saving any HTML the URL serves (`--browser-ua` opt-in) |
 | `corpus bhl setup`, `corpus bhl index` | `bhl_setup.py`, `bhl_index.py` | BHL tier, once: 92 MB of dumps from BHL's S3 bucket → `.runtime/bhl_dumps/bhl.db` (0.55 GB) |
 | `corpus bhl match` | `bhl_match.py` (+ `bhl_item_match.py`) | Match missing keys to a BHL article, else a unique volume; prints a review table |
-| `corpus bhl fetch` | `bhl_fetch.py` (+ `stitch_bhl_pdfs.py`) | Page images of accepted matches → `pdfs/{key}.pdf`, flagged for vision OCR |
+| `corpus bhl fetch` | `bhl_fetch.py` (+ `bhl_stitch.py`) | Page images of accepted matches → `pdfs/{key}.pdf`, flagged for vision OCR |
 | `corpus intake discover` | `intake_discover.py` | What is pending in `pdfs/`, with a path hint per key |
 | `corpus intake acquire` | `intake_acquire.py` | Record dropped PDFs as acquired (`--vision-ocr REASON` to skip marker) |
 | `corpus intake qc` | `intake_qc.py` | Bytes-per-page triage of a converted batch |
-| `corpus pdf extract-pages` | `extract_pdf_pages.py` | Cut a whole-volume PDF down to the article, in place |
-| `corpus pdf append-pages` | `append_pdf_pages.py` | Append pages from a source PDF |
-| `corpus pdf compress` | `compress_pdf.py` | Shrink an oversized scan (**drops the text layer**) |
-| `corpus pdf stitch` | `stitch_source_images.py` | `source_images/{key}/` → `pdfs/{key}.pdf` |
-| `corpus pdf photocopier` | `photocopier_stitch.py` | Same, flat-field-normalising phone photos of a volume |
-| `corpus pdf images` | `extract_pdf_images.py` | Embedded figures of `--key K` → `pdf_images/K/` (on demand, gitignored; `/extract-images`) |
-| `corpus convert marker` | `convert_with_marker.py` | PDF → Markdown from the text layer (`--workers 1`) |
-| `corpus convert vision` | `convert_with_vision.py` | PDF → Markdown via Claude vision OCR (per-page cache) |
-| `corpus convert recover` | `reocr_nooverlap.py` | Re-OCR pages the content filter blocked, cut only on whitespace (candidate first, `--apply` to write) |
-| `corpus convert spread` | `ocr_spread_pdf.py` | Vision OCR of scans whose pages are two-page book spreads, split at the gutter |
-| `corpus convert poster` | `tile_ocr_poster.py` | Vision OCR of a single-canvas conference poster, in tiles |
-| `corpus convert translate` | `translate_markdown.py` | Translate non-English markdown (keeps `.original.md`) |
-| | `correct_cjk_from_textlayer.py` | Correct vision-OCR'd Chinese/Japanese from a born-digital text layer |
+| `corpus pdf extract-pages` | `pdf_extract_pages.py` | Cut a whole-volume PDF down to the article, in place |
+| `corpus pdf append-pages` | `pdf_append_pages.py` | Append pages from a source PDF |
+| `corpus pdf compress` | `pdf_compress.py` | Shrink an oversized scan (**drops the text layer**) |
+| `corpus pdf stitch` | `pdf_stitch.py` | `source_images/{key}/` → `pdfs/{key}.pdf` |
+| `corpus pdf photocopier` | `pdf_photocopier.py` | Same, flat-field-normalising phone photos of a volume |
+| `corpus pdf images` | `pdf_images.py` | Embedded figures of `--key K` → `pdf_images/K/` (on demand, gitignored; `/extract-images`) |
+| `corpus convert marker` | `convert_marker.py` | PDF → Markdown from the text layer (`--workers 1`) |
+| `corpus convert vision` | `convert_vision.py` | PDF → Markdown via Claude vision OCR (per-page cache) |
+| `corpus convert recover` | `convert_recover.py` | Re-OCR pages the content filter blocked, cut only on whitespace (candidate first, `--apply` to write) |
+| `corpus convert spread` | `convert_spread.py` | Vision OCR of scans whose pages are two-page book spreads, split at the gutter |
+| `corpus convert poster` | `convert_poster.py` | Vision OCR of a single-canvas conference poster, in tiles |
+| `corpus convert translate` | `convert_translate.py` | Translate non-English markdown (keeps `.original.md`) |
+| | `repair_cjk.py` | Correct vision-OCR'd Chinese/Japanese from a born-digital text layer |
 | `corpus repair all` | `corpus.repair` | All text-layer repairs in one pass (dry run unless `--apply`) |
-| `corpus clean frontmatter` | `strip_frontmatter.py` | Publisher cover boilerplate |
-| `corpus clean running-heads` | `strip_running_heads.py` | Repeated page heads and feet (**review the list**) |
-| `corpus clean despace` | `despace_ocr.py` | Rejoin OCR word splits (removes spaces only) |
-| `corpus clean ligature-codes` | `fix_ligature_substitutions.py` | fi/fl ligatures and en dashes a text layer reads as ®, ¯, ± (Nature Adv* fonts) |
-| `corpus clean transposed-accents` | `fix_transposed_accents.py` | Accents carried as a separate mark beside their letter (`Neuque´n`, `Mus´eum`) |
-| `corpus clean diacritics` | `fold_diacritics.py` | Spacing accents after their letter (`Osmo´lska`); refuses rough scans |
-| `corpus clean glued-words` | `resplit_glued_words.py` | Spaces a text layer never emitted (`KaiparowitsFormation`) |
-| `corpus clean gesperrt` | `despace_gesperrt.py` | German letterspaced emphasis (`H o l o t y p e`) |
-| `corpus clean coordinates` | `repair_coordinate_glyphs.py` | Verified °/′/″ repairs from `repairs/coordinate_glyphs.json`; `--audit` finds suspects |
-| `corpus clean ligatures` | `fix_dropped_ligatures.py` | Restore f-/Th-ligatures the text layer dropped (`diferent`, `Te`); word frequencies from the corpus once it has 500 clean papers, from `wordfreq` before that |
-| | `untable_gutter_manuscript.py`, `strip_pdf_gutter_numbers.py` | Accepted-manuscript line-number gutters |
-| | `compact_padded_tables.py` | Whitespace-padded table cells |
-| `corpus qc scan` | `scan_markdown_quality.py` | PUA garbage, CJK, image-only stubs; `--apply` flags vision OCR |
-| `corpus qc languages` | `audit_languages.py` | Non-English bodies (`TRANSLATION_AUDIT.md`) |
-| `corpus qc spillover` | `scan_spillover.py` | Markdown holding a neighbouring article |
-| `corpus clean spillover` | `trim_reprint_spillover.py` | Cut neighbouring articles out of a Nature-style reprint (dry run unless `--apply`) |
-| `corpus qc translations` | `audit_translation_completeness.py` | Translations that lost content: short or cut-off chunks, model false starts |
-| `corpus qc control-glyphs` | `identify_control_glyphs.py` | What glyph each broken font's control codes draw; builds the map for `repair control_glyphs` |
-| `corpus qc symbol-glyphs` | `identify_symbol_substitutions.py` | Coordinate symbols a text layer hands back as the wrong character, with crops |
-| `corpus qc garbage` | `score_ocr_garbage.py` | ASCII-looking OCR garbage the quality scan misses (`Ankylo8aurus`; `--near-miss` for `Ornlthlschia`) |
-| `corpus qc gutter` | `audit_gutter_manuscripts.py` | Marker conversions of line-numbered manuscripts that lost lines, measured against the text layer |
-| `corpus qc quotes` | `verify_audit_quotes.py` | Quotations in a findings write-up checked against the markdown they cite |
-| `corpus qc specimen-ids` | `scan_specimen_ids.py` | Accession numbers inked on specimens in figure photos (vision; `/specimen-id-scan`) |
-| `corpus qc textlayer` | `audit_vision_textlayer.py` | Vision output against the PDF's own text layer |
-| `corpus index` | `indexer.py` | Build/refresh `index/papers.db` (incremental) |
+| `corpus clean frontmatter` | `clean_frontmatter.py` | Publisher cover boilerplate |
+| `corpus clean running-heads` | `clean_running_heads.py` | Repeated page heads and feet (**review the list**) |
+| `corpus clean despace` | `clean_despace.py` | Rejoin OCR word splits (removes spaces only) |
+| `corpus clean ligature-codes` | `clean_ligature_codes.py` | fi/fl ligatures and en dashes a text layer reads as ®, ¯, ± (Nature Adv* fonts) |
+| `corpus clean transposed-accents` | `clean_transposed_accents.py` | Accents carried as a separate mark beside their letter (`Neuque´n`, `Mus´eum`) |
+| `corpus clean diacritics` | `clean_diacritics.py` | Spacing accents after their letter (`Osmo´lska`); refuses rough scans |
+| `corpus clean glued-words` | `clean_glued_words.py` | Spaces a text layer never emitted (`KaiparowitsFormation`) |
+| `corpus clean gesperrt` | `clean_gesperrt.py` | German letterspaced emphasis (`H o l o t y p e`) |
+| `corpus clean coordinates` | `clean_coordinates.py` | Verified °/′/″ repairs from `repairs/coordinate_glyphs.json`; `--audit` finds suspects |
+| `corpus clean ligatures` | `clean_ligatures.py` | Restore f-/Th-ligatures the text layer dropped (`diferent`, `Te`); word frequencies from the corpus once it has 500 clean papers, from `wordfreq` before that |
+| | `clean_gutter_tables.py`, `repair_gutter_numbers.py` | Accepted-manuscript line-number gutters |
+| | `clean_padded_tables.py` | Whitespace-padded table cells |
+| `corpus qc scan` | `qc_scan.py` | PUA garbage, CJK, image-only stubs; `--apply` flags vision OCR |
+| `corpus qc languages` | `qc_languages.py` | Non-English bodies (`TRANSLATION_AUDIT.md`) |
+| `corpus qc spillover` | `qc_spillover.py` | Markdown holding a neighbouring article |
+| `corpus clean spillover` | `clean_spillover.py` | Cut neighbouring articles out of a Nature-style reprint (dry run unless `--apply`) |
+| `corpus qc translations` | `qc_translations.py` | Translations that lost content: short or cut-off chunks, model false starts |
+| `corpus qc control-glyphs` | `qc_control_glyphs.py` | What glyph each broken font's control codes draw; builds the map for `repair control_glyphs` |
+| `corpus qc symbol-glyphs` | `qc_symbol_glyphs.py` | Coordinate symbols a text layer hands back as the wrong character, with crops |
+| `corpus qc garbage` | `qc_garbage.py` | ASCII-looking OCR garbage the quality scan misses (`Ankylo8aurus`; `--near-miss` for `Ornlthlschia`) |
+| `corpus qc gutter` | `qc_gutter.py` | Marker conversions of line-numbered manuscripts that lost lines, measured against the text layer |
+| `corpus qc quotes` | `qc_quotes.py` | Quotations in a findings write-up checked against the markdown they cite |
+| `corpus qc specimen-ids` | `qc_specimen_ids.py` | Accession numbers inked on specimens in figure photos (vision; `/specimen-id-scan`) |
+| `corpus qc textlayer` | `qc_textlayer.py` | Vision output against the PDF's own text layer |
+| `corpus index` | `index.py` | Build/refresh `index/papers.db` (incremental) |
 | `corpus search` | `search.py` | Query the index |
 | `corpus web` | `web.py` | Search, read and check papers in a browser: the text beside its PDF, kept on the same page (127.0.0.1:8765; `--open`) |
 
@@ -188,14 +188,14 @@ print(''.join(d[i].get_textpage().get_text_bounded() for i in range(len(d)))[:60
 
 | Symptom in the markdown | Cause | Fix |
 |---|---|---|
-| `numerou s`, `th e` | scan OCR word splits | `despace_ocr.py` |
+| `numerou s`, `th e` | scan OCR word splits | `clean_despace.py` |
 | `Cr~tac~ Inf~rieur`, no accents at all in a French paper | scan OCR flattened accents | vision re-OCR |
 | `Ornlthlschia`, `Ho~otype` | scan OCR letter misreads | vision re-OCR |
 | `CampanianePaleocene`, `M€uller`, `Rhaetian6` | font faults in the text layer | `corpus repair all` |
 | `diferent`, `frst`, `lef`, `Te fossil` | dropped f-/Th-ligatures (Springer Nature, Elsevier) | `corpus clean ligatures --key K` |
 | `AnewprosauropoddinosaurfromLowerJurassic` | fullwidth Latin in a Chinese PDF | vision re-OCR |
-| Whole pages as `\| 24 \| text \|` tables | accepted-manuscript line numbers | `untable_gutter_manuscript.py`, or vision with gutter context |
-| Journal line repeating once per page | running head | `strip_running_heads.py` (review the list) |
+| Whole pages as `\| 24 \| text \|` tables | accepted-manuscript line numbers | `clean_gutter_tables.py`, or vision with gutter context |
+| Journal line repeating once per page | running head | `clean_running_heads.py` (review the list) |
 | Body starts mid-article | marker dropped image-only pages | vision re-OCR |
 | `[VISION OCR FAILED FOR PAGE N: ...]` | content filter blocked a page | `corpus convert recover --key K --page N`; read the measurements, never print the page; then `--apply` |
 

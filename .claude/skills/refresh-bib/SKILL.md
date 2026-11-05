@@ -12,7 +12,7 @@ Refresh the local manifest from the upstream `open-paleo/data` bib. Resolves new
 
 ## 1. Pull latest bib (if remote has new commits)
 
-Only when the bib comes from a data-repo checkout beside this one (`CORPUS_BIB_SOURCE` sibling, or auto with `../data` present; see `corpus.bib`). In remote mode `refresh_manifest.py` downloads the bib itself, and in bundled mode it reads `bib/references.bib`: skip to §2.
+Only when the bib comes from a data-repo checkout beside this one (`CORPUS_BIB_SOURCE` sibling, or auto with `../data` present; see `corpus.bib`). In remote mode `manifest_refresh.py` downloads the bib itself, and in bundled mode it reads `bib/references.bib`: skip to §2.
 
 ```bash
 cd ../data      # OPEN_PALEO_DATA, if set
@@ -36,7 +36,7 @@ Look for telltale messages like `data: split X references into Xa/Xb`, `data: ad
 ## 2. Run the manifest refresh
 
 **⛔ NEVER pipe this script through `tail`, `head`, or any truncating filter,
-and NEVER run it a second time to "re-see" the summary.** `refresh_manifest.py`
+and NEVER run it a second time to "re-see" the summary.** `manifest_refresh.py`
 applies its changes on the FIRST run; a second run is a no-op that reports
 `New entries: 0 / changed: 0`, destroying the record of what actually happened.
 `tail` compounds this by hiding the summary header (New/Dropped/Changed counts)
@@ -45,7 +45,7 @@ re-run. Run it EXACTLY ONCE, capture the FULL output to a file, and read the
 whole thing:
 
 ```bash
-./.runtime/venv/bin/python scripts/refresh_manifest.py 2>&1 | tee /tmp/refresh_out.txt
+./.runtime/venv/bin/python scripts/manifest_refresh.py 2>&1 | tee /tmp/refresh_out.txt
 ```
 
 Then read `/tmp/refresh_out.txt` in full (the `=== Refresh summary ===` header
@@ -114,7 +114,7 @@ EOF
 
 Re-index: the indexer adds the new key and drops the old key's row itself.
 ```bash
-./.runtime/venv/bin/python scripts/indexer.py
+./.runtime/venv/bin/python scripts/index.py
 ```
 
 ### When the split has no artifact on disk

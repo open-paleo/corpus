@@ -54,7 +54,7 @@ Plus any keys the user explicitly named for re-conversion (e.g. "X.pdf has been 
 
 ### Orphans — process inline; flag at the end
 
-Orphans (PDFs whose key isn't in the manifest at all, shown as `in_m=ORPH`) are **not skipped**. The corpus may include reference-only papers that aren't in the upstream `open-paleo/data` bib, and PDFs are routinely dropped *ahead* of bib propagation (the open-paleo workflow pulls genus information from corpus papers before committing the bib entry). Process them through the normal classification + conversion path. The acquire script (§3) creates a stub manifest entry with `in_bib=False` and otherwise-blank citation metadata; `refresh_manifest.py` will overlay bib metadata and flip `in_bib=True` when the bib catches up.
+Orphans (PDFs whose key isn't in the manifest at all, shown as `in_m=ORPH`) are **not skipped**. The corpus may include reference-only papers that aren't in the upstream `open-paleo/data` bib, and PDFs are routinely dropped *ahead* of bib propagation (the open-paleo workflow pulls genus information from corpus papers before committing the bib entry). Process them through the normal classification + conversion path. The acquire script (§3) creates a stub manifest entry with `in_bib=False` and otherwise-blank citation metadata; `manifest_refresh.py` will overlay bib metadata and flip `in_bib=True` when the bib catches up.
 
 Flag the not-in-bib set in your final summary so the user knows which keys still need bib follow-up. If you suspect the bib already has new entries that should overlay before processing (e.g., the user mentions a recent push), run `/refresh-bib` first — but in the absence of that signal, just process.
 
@@ -110,12 +110,12 @@ in the prompt:
 
 ```bash
 ./.runtime/venv/bin/python scripts/intake_acquire.py KEY --vision-ocr "line-numbered manuscript"
-./.runtime/venv/bin/python scripts/convert_with_vision.py --key KEY --extra-context \
+./.runtime/venv/bin/python scripts/convert_vision.py --key KEY --extra-context \
   "Manuscript with a LINE-NUMBER column in the margin. Never transcribe the line numbers or treat them as a table column. Body text is prose; only genuine data tables are tables, one printed row per table row, every cell exactly as printed."
 ```
 
 Then check tables row by row against the text layer (it is born-digital and
-reliable here) and run `scripts/audit_vision_textlayer.py --key KEY`.
+reliable here) and run `scripts/qc_textlayer.py --key KEY`.
 For a supplement, see §8b (vision path).
 
 ## 3. Set acquisitions atomically
@@ -151,7 +151,7 @@ key2
 ...
 EOF
 
-./.runtime/venv/bin/python scripts/convert_with_marker.py \
+./.runtime/venv/bin/python scripts/convert_marker.py \
   --workers 1 --force --keys-file /tmp/intake_keys.txt
 ```
 
@@ -168,7 +168,7 @@ Scripts write the manifest under a lock and apply only the fields they changed, 
 With the user's PDF page range, OCR only those pages:
 
 ```bash
-./.runtime/venv/bin/python scripts/convert_with_vision.py --key KEY --pages "48-49"
+./.runtime/venv/bin/python scripts/convert_vision.py --key KEY --pages "48-49"
 ```
 
 `--pages` takes a 1-indexed spec (`'1-24'`, `'1-3, 7'`) and needs exactly one `--key`. The markdown holds only those pages, joined with `"\n\n---\n\n"`; the manifest gets `tool=claude-vision`, the page count of the scope, and `SCOPE-LIMITED to PDF pages ...` in `conversion.notes`. The PDF stays whole. Responses are cached per PDF page (`.runtime/cache/vision/{key}/page-NNNN.json`), so a later full run cache-hits these pages.
@@ -182,8 +182,8 @@ To cut the PDF itself down to the article instead, use `/extract-pages` before c
 After marker (Path A/D) finishes:
 
 ```bash
-./.runtime/venv/bin/python scripts/scan_markdown_quality.py
-./.runtime/venv/bin/python scripts/audit_languages.py
+./.runtime/venv/bin/python scripts/qc_scan.py
+./.runtime/venv/bin/python scripts/qc_languages.py
 ./.runtime/venv/bin/python scripts/intake_qc.py --keys-file /tmp/intake_keys.txt
 ```
 
@@ -194,16 +194,16 @@ After marker (Path A/D) finishes:
 - `<1000 B/page` but no T&F markers → `likely_stub` flag (eyeball the body before declaring ok). A genuinely short early-1900s paper (4 pages at about 1,000 B/page) reads like real text.
 - Otherwise → `ok`.
 
-The script exits non-zero (1) if any flagged rows; useful for scripted gates. For `image_only` / `tf_cover_stub` keys, set `vision_ocr_needed=True` (re-run `intake_acquire.py --vision-ocr`, or `scan_markdown_quality.py --apply` for the keys it flags) and rerun via §7.
+The script exits non-zero (1) if any flagged rows; useful for scripted gates. For `image_only` / `tf_cover_stub` keys, set `vision_ocr_needed=True` (re-run `intake_acquire.py --vision-ocr`, or `qc_scan.py --apply` for the keys it flags) and rerun via §7.
 
 For language-audit hits **on a key whose journal you know is English-published** (e.g. langdetect says 60% German on a paper from a Chinese journal), assume marker CID-garbage and route to vision OCR — translating gibberish produces hallucinations. Real CJK content routes to translation instead.
 
 ## 7. Vision OCR (Paths B, V + QC-flagged)
 
-Run `convert_with_vision.py` — it reads `vision_ocr_needed=True` flags and processes those keys:
+Run `convert_vision.py` — it reads `vision_ocr_needed=True` flags and processes those keys:
 
 ```bash
-./.runtime/venv/bin/python scripts/convert_with_vision.py
+./.runtime/venv/bin/python scripts/convert_vision.py
 ```
 
 Without `--key` it skips keys whose `conversion.tool` is already `claude-vision`, even when flagged. For a replacement re-OCR (a new PDF, or after `/extract-pages`) pass `--key {key} --force`: the cache key does not include page content, and `--force` re-OCRs the pages and replaces their cache entries. Check the "Vision-OCR candidates: N" count against the keys you expected.
@@ -213,7 +213,7 @@ PDF has one (born-digital papers, Chinese/Japanese journals, line-numbered
 manuscripts):
 
 ```bash
-./.runtime/venv/bin/python scripts/audit_vision_textlayer.py --key KEY --show
+./.runtime/venv/bin/python scripts/qc_textlayer.py --key KEY --show
 ```
 
 Vision OCR writes fluent text and fails silently in two ways this catches:
@@ -222,7 +222,7 @@ empty) and plausible wrong characters. In Chinese/Japanese text the
 substitutions change meaning and survive translation unseen (肱 humerus → 胫
 tibia or 胱 bladder, 锄 vomer → 颧 jugal, 砾 gravel → 碎). On a **born-digital
 CJK** layer, correct the substitutions from the layer BEFORE translating
-(`scripts/correct_cjk_from_textlayer.py KEY`, review the numbered list, then
+(`scripts/repair_cjk.py KEY`, review the numbered list, then
 `--apply --skip N,...`; see `docs/notes/conversion.md`,
 "A born-digital Chinese PDF's own text layer is a full control"); a layer
 whose CJK agreement is UNUSABLE has a broken font map and is no control.
@@ -230,7 +230,7 @@ On Latin-script layers most "subs" are the layer's own broken accents
 (vision is right) and most "drops" are text inside charts and maps; read the
 drops, and treat an empty or near-empty page as a real loss.
 
-If output reports `partial=N` for any key, individual pages were content-filter blocked: they appear in the markdown as `[VISION OCR FAILED FOR PAGE N: ...]` lines. Recover each page with `corpus convert recover` (`scripts/reocr_nooverlap.py`; see `docs/notes/conversion.md`, "Content-filter blocks"):
+If output reports `partial=N` for any key, individual pages were content-filter blocked: they appear in the markdown as `[VISION OCR FAILED FOR PAGE N: ...]` lines. Recover each page with `corpus convert recover` (`scripts/convert_recover.py`; see `docs/notes/conversion.md`, "Content-filter blocks"):
 
 ```bash
 ./.runtime/venv/bin/corpus convert recover --key {key} --page N [--page M ...]          # candidate + measurements
@@ -244,7 +244,7 @@ It tries the intact page first, then cuts it only where there is no text (at a t
 For language-audit hits that are real non-English content (not CID garbage):
 
 ```bash
-./.runtime/venv/bin/python scripts/translate_markdown.py --key {key}
+./.runtime/venv/bin/python scripts/convert_translate.py --key {key}
 ```
 
 Backs up to `markdown/{key}.original.md` and refuses if result is `<50%` original size. Both the translated and `.original.md` files get committed. For a bilingual paper whose English abstract makes language detection return English and skip the file, force the source language with `--src-lang` (e.g. `zh-cn`, `de`), one key per run.
@@ -278,11 +278,11 @@ orphan-list churn at `/refresh-bib`.
 4a. **Convert (marker)** — pass the `{parent}-{name}` stems + `--supplementary`:
     ```bash
     printf '%s\n' '{parent}-{name}' > /tmp/supp_keys.txt
-    ./.runtime/venv/bin/python scripts/convert_with_marker.py \
+    ./.runtime/venv/bin/python scripts/convert_marker.py \
       --workers 1 --force --supplementary --keys-file /tmp/supp_keys.txt
     ```
     Output lands in `markdown/supplementary/`; the parent sub-record is written.
-4b. **Convert (vision)** — `convert_with_vision.py` has no `--supplementary`
+4b. **Convert (vision)** — `convert_vision.py` has no `--supplementary`
     flag, so run a short inline script: render each page of
     `supplementary/{stem}.pdf` with `corpus.pdf.render.render_jpeg` (DPI 150),
     OCR it with `corpus.vision.ocr.ocr_one_page` using the prompt from
@@ -292,11 +292,11 @@ orphan-list churn at `/refresh-bib`.
     `"\n\n---\n\n"`, write `markdown/supplementary/{stem}.md`, and record the
     result on `manifest[parent]["supplementary"][name]` (`tool="claude-vision"`)
     through `corpus.manifest.update`, not a top-level conversion block.
-5. **QC** — `intake_qc.py`/`scan_markdown_quality.py`/`audit_languages.py`
+5. **QC** — `intake_qc.py`/`qc_scan.py`/`qc_languages.py`
    iterate manifest keys, so they won't see supplementary stems — **eyeball the
-   markdown by hand**. `strip_frontmatter.py --key {stem}` still works on the
+   markdown by hand**. `clean_frontmatter.py --key {stem}` still works on the
    file if a cover slipped in (usually a no-op for supplementary).
-6. **Index** — `indexer.py` walks `markdown/supplementary/` automatically and
+6. **Index** — `index.py` walks `markdown/supplementary/` automatically and
    indexes each under `{parent}-{name}`, inheriting the parent's
    title/year/genera with a `[suppl: {name}]` title prefix. Supplementary never
    counts as missing (`corpus status`).
@@ -317,12 +317,12 @@ paths (§4/§5/§7) and any translation (§8) have finished, on the batch keys:
 
 ```bash
 # dry-run on just this batch's keys (prints the blocks it would cut)
-./.runtime/venv/bin/python scripts/strip_frontmatter.py --key key1 --key key2
+./.runtime/venv/bin/python scripts/clean_frontmatter.py --key key1 --key key2
 # apply
-./.runtime/venv/bin/python scripts/strip_frontmatter.py --apply --key key1 --key key2
+./.runtime/venv/bin/python scripts/clean_frontmatter.py --apply --key key1 --key key2
 ```
 
-`strip_frontmatter.py` is a paragraph-level denylist bounded to the first
+`clean_frontmatter.py` is a paragraph-level denylist bounded to the first
 4,000 characters of each file. It removes:
 
 - the T&F download stamp ("This article was downloaded by…", the
@@ -410,7 +410,7 @@ to look for.
 Then index, and check the counts:
 
 ```bash
-./.runtime/venv/bin/python scripts/indexer.py
+./.runtime/venv/bin/python scripts/index.py
 ./.runtime/venv/bin/corpus status        # held / converted / indexed / missing
 ```
 
@@ -440,23 +440,23 @@ PDF in pdfs/ but not in manifest acquired set, OR modified/untracked in git stat
 │   ├── year < 1900     → Path B (vision direct)
 │   ├── 1900 ≤ year     → Path A (marker)
 │   ├── text layer has a line-number gutter → Path V (vision + gutter context; never marker)
-│   └── PDF pages ≫ cited pages → Path C (ask user for scope; convert_with_vision.py --pages)
+│   └── PDF pages ≫ cited pages → Path C (ask user for scope; convert_vision.py --pages)
 └── In manifest, prior conversion exists (or PDF modified in git) → REPLACEMENT
     └── Path D (marker --force; for vision keys
-        convert_with_vision.py --key {key} --force)
+        convert_vision.py --key {key} --force)
 
 After conversion (Path A/D):
 ├── no text besides page markers, or <200 B/page over >10 pages → set vision_ocr_needed; rerun via §7
 ├── Body is cover-page boilerplate (T&F pattern) → set vision_ocr_needed; rerun via §7
-├── audit_languages flag on English journal → marker CID-garbage; vision OCR
-└── audit_languages flag on actual non-English → translate via §8
+├── qc_languages flag on English journal → marker CID-garbage; vision OCR
+└── qc_languages flag on actual non-English → translate via §8
 ```
 
 ## Cost reference
 
 - Marker (text-layer): free, ~30-100 s/PDF.
 - Vision OCR (Sonnet 5.5, $2/$10 per MTok): ~$0.01-0.02/page. The script prints each run's cost.
-- `corpus convert recover` (reocr_nooverlap.py): ~$0.05-0.15 per blocked page, from the number of pieces it takes.
-- `translate_markdown.py` (Sonnet 5.5): ~$0.10-0.20 per typical paper (a 13-page German paper is about $0.16).
+- `corpus convert recover` (convert_recover.py): ~$0.05-0.15 per blocked page, from the number of pieces it takes.
+- `convert_translate.py` (Sonnet 5.5): ~$0.10-0.20 per typical paper (a 13-page German paper is about $0.16).
 
 When the batch includes large vision OCR (>50 pages) or expensive recovery, surface a cost estimate to the user before kicking off.

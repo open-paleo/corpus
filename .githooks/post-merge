@@ -19,5 +19,5 @@ changed=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null
 
 if [ "$changed" -gt 0 ]; then
   echo "post-merge: $changed markdown change(s) — refreshing FTS5 index"
-  ./.runtime/venv/bin/python scripts/indexer.py
+  ./.runtime/venv/bin/python scripts/index.py
 fi

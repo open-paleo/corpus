@@ -77,7 +77,7 @@ paper; a supplementary row carries its parent's. `translated` is `1` when
 the body is an English translation (the original is
 `markdown/{key}.original.md`), else empty. Select columns by name: new
 columns are only ever added at the end, so the body stays column 7 for
-`snippet()` and `highlight()`. Open it read-only; `scripts/indexer.py`
+`snippet()` and `highlight()`. Open it read-only; `scripts/index.py`
 rebuilds it from `markdown/`, replacing the file only once the new index
 is complete.
 

@@ -86,20 +86,20 @@ def test_in_marker():
 # Rewriters run on a marked paper: whatever they change, the markers stay.
 
 def test_strip_frontmatter_keeps_markers_of_removed_pages():
-    import strip_frontmatter
+    import clean_frontmatter
     text = sample()
-    out = strip_frontmatter.strip_file(text)[0]
+    out = clean_frontmatter.strip_file(text)[0]
     assert "Biodiversity Heritage Library" not in out and "intentionally left blank" not in out
     assert numbers(out) == numbers(text)
 
 
 def test_strip_running_heads_keeps_markers(tmp_path):
-    import strip_running_heads
+    import clean_running_heads
     p = tmp_path / "k.md"
     p.write_text(sample(), encoding="utf-8")
     args = argparse.Namespace(max_len=90, min_words=3, min_repeats=3, heading_regex=[],
                               drop_number_headings=False, exclude=[], apply=True)
-    n_cut, _, cut = strip_running_heads.process(p, args)
+    n_cut, _, cut = clean_running_heads.process(p, args)
     assert set(cut) == {HEAD}
     assert numbers(p.read_text(encoding="utf-8")) == numbers(sample())
 
@@ -110,20 +110,20 @@ def test_despace_keeps_markers(tmp_path, monkeypatch):
     words.write_text("\n".join({w.lower() for w in re.findall(r"[A-Za-z]+", sample())}
                                - {"numerou"} | {"numerous"}), encoding="utf-8")
     monkeypatch.setenv("CORPUS_WORDLIST", str(words))
-    import despace_ocr
+    import clean_despace
     from corpus.words import WORDS
     monkeypatch.setattr(WORDS, "_set", None, raising=False)
-    out = despace_ocr.despace(sample())[0]
+    out = clean_despace.despace(sample())[0]
     assert "numerous" in out and numbers(out) == numbers(sample())
 
 
 def test_gutter_number_strippers_ignore_markers():
-    import strip_pdf_gutter_numbers
-    import untable_gutter_manuscript
+    import repair_gutter_numbers
+    import clean_gutter_tables
     text = sample()
-    assert untable_gutter_manuscript.strip_inline_gutter(text)[0] == text
+    assert clean_gutter_tables.strip_inline_gutter(text)[0] == text
     marked = pages.in_marker(text)
-    assert not any(marked(start) for start, _, _ in strip_pdf_gutter_numbers.md_tokens(text))
+    assert not any(marked(start) for start, _, _ in repair_gutter_numbers.md_tokens(text))
 
 
 def test_translation_never_sends_markers():
@@ -151,7 +151,7 @@ def test_index_strips_markers_and_skips_marker_only_files(tmp_path):
     (tmp_path / "manifest.json").write_text(json.dumps({"a2000a": {}, "scan2000a": {}}))
     (md / "a2000a.md").write_text(join([(1, "Femur."), (2, "Tibia.")]), encoding="utf-8")
     (md / "scan2000a.md").write_text("<!-- page 1 -->\n\n<!-- page 2 -->\n", encoding="utf-8")
-    subprocess.run([sys.executable, str(REPO / "scripts" / "indexer.py")], check=True,
+    subprocess.run([sys.executable, str(REPO / "scripts" / "index.py")], check=True,
                    capture_output=True, env={**os.environ, "CORPUS_ROOT": str(tmp_path)})
     con = sqlite3.connect(tmp_path / "index" / "papers.db")
     rows = dict(con.execute("SELECT citation_key, body FROM papers"))

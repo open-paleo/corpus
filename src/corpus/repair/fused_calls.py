@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Separate reference-call digits that marker fused onto the preceding word.
 
-Where `repair_marker_ref_links.py` handles the calls marker turned into links,
+Where `corpus repair ref_links` handles the calls marker turned into links,
 this handles the ones it flattened instead: the superscript loses its markup and
 lands hard against the word, so the word stops being a word.
 
@@ -25,10 +25,10 @@ Output matches what marker already emits for superscripts elsewhere in these
 same files, `word<sup>N</sup>`, so the reference number is preserved rather than
 discarded.
 
-    scripts/repair_fused_superscript_refs.py --audit
-    scripts/repair_fused_superscript_refs.py --key KEY
-    scripts/repair_fused_superscript_refs.py --key KEY --apply
-    scripts/repair_fused_superscript_refs.py --all --apply
+    corpus repair fused_calls --audit
+    corpus repair fused_calls --key KEY
+    corpus repair fused_calls --key KEY --apply
+    corpus repair fused_calls --all --apply
 """
 from __future__ import annotations
 

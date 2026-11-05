@@ -30,7 +30,7 @@ Save the leaves as `source_images/{key}/`, then `corpus pdf stitch --key {key}` 
 - **paleoarchive.com/literature/**: about 1,300 PDFs of Scandinavian geology, 1821–1998. curl needs a browser user agent. File names follow `Author[&Author|etal]YYYY-Title.pdf`.
 - **Free, but refused to scripts**: teses.usp.br (USP theses), Persée PDFs, the LNEG geoportal, the Open University ORO, the Texas Tech repository, Gallica, Queensland GSQ open data, SARIG, Math-Net.ru. Download these in a browser; don't try to get a script past the block.
 - **HathiTrust**: page images refuse scripted requests (a Cloudflare challenge), even with a browser user agent; do not try to get round it. The catalog API (`catalog.hathitrust.org/api/volumes/brief/htid/{id}.json`) still answers and gives title, rights code and other copies of the volume. Read full-view volumes in a browser.
-- **CNKI** covers Chinese journals and theses, not books or symposium volumes, and doesn't answer scripted requests; search it in a browser. Its scans of old journals carry OCR layers that misread, so use vision; born-digital theses have a usable CJK layer for `scripts/correct_cjk_from_textlayer.py`.
+- **CNKI** covers Chinese journals and theses, not books or symposium volumes, and doesn't answer scripted requests; search it in a browser. Its scans of old journals carry OCR layers that misread, so use vision; born-digital theses have a usable CJK layer for `scripts/repair_cjk.py`.
 - **Not available**: Paleontological Journal (English) on SpringerLink starts in 2006, so the 1966–1996 papers are not online there. PalAss Field Guides to Fossils are print-only.
 
 ### Conference abstracts and proceedings: where they end up
