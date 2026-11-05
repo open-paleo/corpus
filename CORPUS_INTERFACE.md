@@ -27,7 +27,6 @@ they can contain hyphens and non-ASCII letters), in Unicode NFC.
 | `supplementary/{key}-{name}.pdf` | Source of a supplementary file. |
 | `manifest.json` | One entry per key; fields below. |
 | `index/papers.db` | SQLite FTS5 search index; schema below. |
-| `condensed/` | Written by the data repository's agents (paper condensations); the corpus never writes it. |
 
 Each page's text starts with a page marker, an HTML comment on its own line:
 `<!-- page N -->`, where N is the page's position in `pdfs/{key}.pdf` (from 1,
