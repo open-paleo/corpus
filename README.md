@@ -23,14 +23,14 @@ recording what you hold stay on your own machine: git ignores them.
 ## Setup
 
 Clone this repository beside the data repository. The data repository looks
-for the corpus in a sibling folder named `open-paleo-papers` (or wherever
-`OPEN_PALEO_PAPERS_DIR` points), so clone it under that name:
+for the corpus in a sibling folder named `corpus` (or wherever
+`OPEN_PALEO_CORPUS` points):
 
 ```bash
 mkdir open-paleo && cd open-paleo
 git clone https://github.com/open-paleo/data.git                    # optional, see below
-git clone https://github.com/open-paleo/corpus.git open-paleo-papers
-cd open-paleo-papers
+git clone https://github.com/open-paleo/corpus.git
+cd corpus
 ./scripts/bootstrap.sh --hooks      # venv, .env from .env.example, search index, git hooks
 $EDITOR .env                        # UNPAYWALL_EMAIL, ANTHROPIC_API_KEY
 ./.runtime/venv/bin/corpus manifest refresh    # one manifest entry per bib key
