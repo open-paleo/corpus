@@ -63,7 +63,6 @@ markdown/{key}.original.md          original language, when {key}.md is a transl
 markdown/supplementary/{key}-{name}.md
 source_images/{key}/                page photos or scans to stitch into a PDF
 index/papers.db                     FTS5 index (scripts/index.py)
-condensed/                          written by the data repository's agents
 manifest.json                       citation_key -> metadata (locked, atomic writes)
 .runtime/                           venv, caches (vision OCR per page), logs
 ```

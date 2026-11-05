@@ -18,7 +18,7 @@ few words around a broken dash, say), are fine. Write them out yourself
 rather than pasting a page.
 
 The content folders (`pdfs/`, `markdown/`, `supplementary/`, `source_images/`,
-`pdf_images/`, `condensed/`, `index/`) each contain a `.gitignore` of `*`, so
+`pdf_images/`, `index/`) each contain a `.gitignore` of `*`, so
 git ignores what you put there. Don't remove those files in a fork you
 publish. A required check fails any pull request that adds files under those
 folders, or any PDF, image, Word or Excel file anywhere.
