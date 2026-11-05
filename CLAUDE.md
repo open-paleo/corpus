@@ -89,6 +89,7 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus fetch unpaywall-by-doi` | `fetch_unpaywall_by_doi.py` | Same, for key/DOI lists not yet in the manifest |
 | `corpus fetch pmc` | `fetch_pmc_oa.py` | Tier 2: PMC Open Access subset by DOI (Europe PMC lookup, NCBI's public bucket) |
 | `corpus fetch oa-direct` | `fetch_oa_direct.py` | Tier 3: DOI landing page → `citation_pdf_url` (`--browser-ua` opt-in) |
+| `corpus fetch retry-unpaywall` | `retry_unpaywall.py` | Retry Unpaywall download failures, saving any HTML the URL serves (`--browser-ua` opt-in) |
 | `corpus bhl setup`, `corpus bhl index` | `bhl_setup.py`, `bhl_index.py` | BHL tier, once: 92 MB of dumps from BHL's S3 bucket → `.runtime/bhl_dumps/bhl.db` (0.55 GB) |
 | `corpus bhl match` | `bhl_match.py` (+ `bhl_item_match.py`) | Match missing keys to a BHL article, else a unique volume; prints a review table |
 | `corpus bhl fetch` | `bhl_fetch.py` (+ `stitch_bhl_pdfs.py`) | Page images of accepted matches → `pdfs/{key}.pdf`, flagged for vision OCR |
@@ -128,6 +129,10 @@ through `corpus.manifest.update()`. Scripts are resume-safe.
 | `corpus qc translations` | `audit_translation_completeness.py` | Translations that lost content: short or cut-off chunks, model false starts |
 | `corpus qc control-glyphs` | `identify_control_glyphs.py` | What glyph each broken font's control codes draw; builds the map for `repair control_glyphs` |
 | `corpus qc symbol-glyphs` | `identify_symbol_substitutions.py` | Coordinate symbols a text layer hands back as the wrong character, with crops |
+| `corpus qc garbage` | `score_ocr_garbage.py` | ASCII-looking OCR garbage the quality scan misses (`Ankylo8aurus`; `--near-miss` for `Ornlthlschia`) |
+| `corpus qc gutter` | `audit_gutter_manuscripts.py` | Marker conversions of line-numbered manuscripts that lost lines, measured against the text layer |
+| `corpus qc quotes` | `verify_audit_quotes.py` | Quotations in a findings write-up checked against the markdown they cite |
+| `corpus qc specimen-ids` | `scan_specimen_ids.py` | Accession numbers inked on specimens in figure photos (vision; `/specimen-id-scan`) |
 | `corpus qc textlayer` | `audit_vision_textlayer.py` | Vision output against the PDF's own text layer |
 | `corpus index` | `indexer.py` | Build/refresh `index/papers.db` (incremental) |
 | `corpus search` | `search.py` | Query the index |
