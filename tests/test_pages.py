@@ -93,6 +93,28 @@ def test_strip_frontmatter_keeps_markers_of_removed_pages():
     assert numbers(out) == numbers(text)
 
 
+def test_restore_dropped_puts_a_leading_marker_above_kept_text():
+    old = "<!-- page 1 -->\n\nJournal masthead\n\n# Title\n\n<!-- page 2 -->\n\nBody.\n"
+    new = "# Title\n\n<!-- page 2 -->\n\nBody.\n"
+    out = pages.restore_dropped(old, new)
+    assert out.startswith("<!-- page 1 -->") and out.index("# Title") < out.index("<!-- page 2 -->")
+    assert numbers(out) == [1, 2]
+    # a whole cover page removed: its marker still goes beside the next one
+    out = pages.restore_dropped(old, "<!-- page 2 -->\n\nBody.\n")
+    assert out.startswith("<!-- page 1 -->\n\n<!-- page 2 -->")
+
+
+def test_strip_frontmatter_keeps_the_title_on_its_page():
+    import clean_frontmatter
+    text = ("<!-- page 1 -->\n\n## **Journal of Vertebrate Paleontology**\n\n"
+            "**ISSN: 0272-4634 (Print) 1937-2809 (Online) Journal homepage: www.tandfonline.com/journals/ujvp20**\n\n"
+            "# A new ceratopsian\n\n**To cite this article:** A. Author (1989) A new ceratopsian, Journal of Vertebrate Paleontology.\n\n"
+            "<!-- page 2 -->\n\nBody text.\n")
+    out = clean_frontmatter.strip_file(text)[0]
+    assert "tandfonline.com/journals" not in out
+    assert out.startswith("<!-- page 1 -->") and out.index("# A new ceratopsian") < out.index("<!-- page 2 -->")
+
+
 def test_strip_running_heads_keeps_markers(tmp_path):
     import clean_running_heads
     p = tmp_path / "k.md"
