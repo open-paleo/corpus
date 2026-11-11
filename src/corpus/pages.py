@@ -96,6 +96,14 @@ def restore_dropped(old: str, new: str) -> str:
                 pending = []
         else:
             pending.append(n)
+    # Markers missing ahead of the first kept one go to the top when text was
+    # kept above that marker: an edit that removed a cover sheet together with
+    # the first page's marker kept that page's own text (its title), which
+    # belongs to the first page, not to no page.
+    first = MARKER.search(new)
+    if first and new[:first.start()].strip() and int(first.group(1)) in missing_before:
+        lead = missing_before.pop(int(first.group(1)))
+        new = "\n\n".join(marker(p) for p in lead) + "\n\n" + new.lstrip("\n")
     out = MARKER.sub(lambda m: "\n\n".join(
         [marker(p) for p in missing_before.get(int(m.group(1)), [])] + [m.group(0)]), new)
     if pending:
