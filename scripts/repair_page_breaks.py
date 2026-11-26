@@ -39,7 +39,6 @@ import json
 import re
 import sys
 import unicodedata
-from pathlib import Path
 
 from corpus.config import MD_DIR, PDF_DIR
 from corpus.keys import key_arg, read_keys_file

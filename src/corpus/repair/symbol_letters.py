@@ -56,7 +56,6 @@ TABLE: dict[tuple[str, str], str] = {
     ("AdvP4C9543", "0"): "′", ("AdvP4C9543", "£"): "×",
     ("AdvEls-ent7", "B"): "~", ("AdvEls-ent5", "1"): "°", ("AdvEls-ent2", "y"): "§",
     ("AdvPS3FDD77", "w"): "~", ("AdvPS3FDD77", "("): "°",
-    ("AdvPS7DA6", "8"): "°",
     ("AdvP3F4C13", "m"): "µ", ("AdvPS3F4C13", "m"): "µ", ("AdvPSMP13", "l"): "µ",
     ("AdvP3EAA99", "m"): "µ", ("AdvP3F8D2B", "m"): "µ", ("AdvPS462D00", "m"): "µ",
     ("AdvP43A417", "m"): "µ", ("AdvPS4BD310", "m"): "µ", ("AdvP697C", "m"): "µ",

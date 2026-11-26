@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import re
 from collections import Counter
-from pathlib import Path
 
 from corpus.config import MD_DIR
 from corpus.keys import key_arg
