@@ -3,7 +3,7 @@
     corpus                          list the commands
     corpus status [--missing]       what the corpus holds, and what is missing
     corpus repair all [--apply]     every text-layer repair, one pass per paper
-    corpus repair dash --key K      one repair (dash, symbols, accents, diaeresis,
+    corpus repair dash --key K      one repair (dash, symbols, symbol_letters, accents, diaeresis,
                                     ref_links, fused_calls, control_glyphs)
     corpus intake acquire K ...     and the other commands the scripts declare
     corpus run SCRIPT [args]        any script in scripts/, by file name
@@ -62,7 +62,7 @@ def commands(scripts: Path | None = None) -> dict[tuple[str, ...], tuple[str, st
     return found
 
 
-REPAIR_NAMES = ["dash", "symbols", "accents", "diaeresis", "ref_links", "fused_calls",
+REPAIR_NAMES = ["dash", "symbols", "symbol_letters", "accents", "diaeresis", "ref_links", "fused_calls",
                 "control_glyphs"]
 
 

@@ -25,6 +25,9 @@ When the user says a paper is citation-only, (1) `intake_acquire.py {key}` (sets
 
 The same works for a supplementary file that isn't worth converting (map sheets, fold-out plates): on `manifest[parent]["supplementary"][name]` set `skipped: true`, `tool`, `markdown_path` and `converted_at` to null, and say why in `notes` ("Stored without OCR by request"). Commit the PDF and no markdown (remove any empty placeholder markdown); `intake_discover.py` then stops listing it.
 
+### Original plus published translation: the main markdown's pages follow the translation
+When a key holds the original as its PDF and keeps a published human translation as its main markdown (martínez1998a, barsbold1983a), the translation PDF goes to `supplementary/{key}-translation-{translator}.pdf` with `skipped: true` (its markdown is the key's main markdown), and the original is converted to `markdown/{key}.original.md` (`conversion.original_markdown_path`). The main markdown's `<!-- page N -->` markers then count the translation PDF's pages, not `pdfs/{key}.pdf`'s: in barsbold1983a they run two pages ahead of the Russian original around folio 82-84. Record this in `conversion.page_markers`, and cite pages from `{key}.original.md`. A published translation can also leave things out (barsbold1983a's drops "the lower part" from the Djadokhta age), so check age and stratigraphy statements against the original before relying on them.
+
 ### Check the key is free before writing an extracted PDF
 Writing `pdfs/{key}.pdf` silently overwrites an existing file, and `intake_acquire.py` then rewrites the entry; a whole held book can be replaced by a five-page section this way (restore from git). Before any extraction, check `ls pdfs/{key}.pdf` and the manifest. A section of a book already held goes in as `supplementary/{key}-{name}.pdf`.
 
@@ -33,6 +36,7 @@ In bound volumes (USGS Professional Papers, Palaeontographica, society memoirs) 
 
 ### A direct manifest edit setting `vision_ocr_needed` must also set `acquisition.source="manual"`
 `intake_acquire.py --vision-ocr` sets both. Editing only `conversion` (for instance to preserve a hand-written `acquisition.notes` that `intake_acquire` would overwrite) leaves `source=null`, and `intake_discover.py` re-surfaces the key as new on every run.
+The reverse applies to re-reading a paper already held: don't run `intake_acquire.py` on it to set the flag, since it rewrites `acquisition.source` (a fetcher's `unpaywall` or `pmc` becomes `manual`) although the PDF is unchanged. Pass `--key K --force` to `convert_vision.py`, or set only `conversion.vision_ocr_needed` through `corpus.manifest.update`.
 
 ### A stub-orphan under an `a` key can be claimed by the bib for a different paper
 A stub-orphan (`in_bib=False`) taken in under an `a` key can later find the bib assigning that key to another paper by the same author and year. Before choosing a `z` key for a new paper, compare its DOI and title with the bib citation (`manifest[key].citation`) of each same-stem key, not with the held file's contents. A held file that disagrees with its own key's bib citation is a mis-filed stub: move it to `z`, and put the new paper on the key the bib gave it.
