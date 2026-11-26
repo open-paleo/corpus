@@ -200,6 +200,9 @@ Triage a hit with word recall: take every 8+-letter word in the PDF text layer a
 Recall checks prose only. If the answer lives in a figure or chart on an image-only page, the PDF is the source regardless of the markdown score.
 A zero count for a word in the paper's own title is the human-visible tell.
 
+### Spaces marker leaves at line breaks in Chinese and Japanese text
+Marker joins a CJK paragraph's lines with a space, so a born-digital Chinese paper reads "上白垩统分为 左云组", "鲜 被关注" (xi2021a: about 1,000 in one file). `corpus clean cjk-spaces` (`clean_cjk_spaces.py`) removes a space only where the PDF's text layer has the same six CJK characters either side, once, with nothing or a line break between them; a space the PDF prints (between two names, after an affiliation) stays. 3,747 removed in 23 files on 2026-11-26; about as many kept, mostly where the layer's characters differ from the markdown's.
+
 ### Fullwidth Latin in Chinese journals: finding affected files
 CLAUDE.md covers the cause and fix (vision re-OCR). To find cases corpus-wide, a "long space-free run" scan gives hundreds of false positives (`infrapostzygapophyseal`, `Naturwissenschaftliche`). Require ≥50 co-occurring CJK characters and runs ≥30 characters (real long words cap near 22). To check a text layer, NFKC-normalise first or count characters in U+FF01-FF5E. After repair, only fullwidth punctuation should remain. Re-OCR can newly surface a translation candidate.
 
