@@ -371,8 +371,9 @@ Marker passes through whatever the PDF's own text layer holds, and several
 faults recur in fresh batches that no QC script flags: Elsevier's dash font
 extracts en/em dashes as "e"/"d" (`CampanianePaleocene`, `1813e1836`), umlauts
 arrive as "€" (`M€uller`), marker moves letters into reference-call links
-(`flora[s14](...)`), superscript calls fuse onto words (`Rhaetian6`), and some
-fonts drop symbol glyphs. `corpus repair all` runs every repair on each paper
+(`flora[s14](...)`), superscript calls fuse onto words (`Rhaetian6`), some
+fonts drop symbol glyphs, and symbol fonts hand back a wrong character
+(`MSWD ¼ 0.2` for =, `N40 Ma` for >40). `corpus repair all` runs every repair on each paper
 in one pass (PDF opened once, markdown written once). Each repair keys on the
 PDF, never on a regex over the markdown, and is idempotent:
 
@@ -390,7 +391,15 @@ edit whose "call" is not a plausible reference number. Details: the
 conversion notes, "Elsevier font AdvPS44A44B" and "PDF libraries".
 `--only dash` (repeatable) runs a subset, `--quiet` prints totals only, and
 each repair also runs on its own as
-`corpus repair dash|symbols|accents|diaeresis|ref_links|fused_calls`.
+`corpus repair dash|symbols|symbol_letters|accents|diaeresis|ref_links|fused_calls`.
+
+Marker also files a paragraph that crosses a page break under the page it
+ends on. Split those at the printed break (marker keys only):
+
+```bash
+./.runtime/venv/bin/corpus repair page-breaks --keys-file /tmp/intake_keys.txt            # dry run
+./.runtime/venv/bin/corpus repair page-breaks --keys-file /tmp/intake_keys.txt --apply
+```
 
 Then the dropped-ligature repair, for born-digital papers whose markdown shows
 the tell (`frst`, `diferent`, `identifed`, `lef`, sentence-initial `Te`):

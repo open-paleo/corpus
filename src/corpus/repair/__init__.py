@@ -67,6 +67,8 @@ REPAIRS: list[Repair] = [
            "Elsevier dash font: en/em dashes extracted as letters"),
     Repair("symbols", "symbols", lambda k, e, md: True,
            "symbol glyphs the text layer dropped as control characters"),
+    Repair("symbol_letters", "symbol_letters", lambda k, e, md: True,
+           "symbol glyphs the text layer reads as ordinary characters (¼ for =)"),
     Repair("accents", "accents", _accents_eligible,
            "accents drawn by a companion font (identified papers only)"),
     Repair("diaeresis", "diaeresis", _diaeresis_eligible,

@@ -94,3 +94,64 @@ def test_coordinate_repairs_without_a_file(tmp_path):
     (tmp_path / "manifest.json").write_text("{}")
     result = run("clean_coordinates.py", tmp_path)
     assert result.returncode == 0 and "no recorded repairs" in result.stdout
+
+
+class _FakeDoc:
+    """rawdict() pages built from (font, text) spans, one line per list."""
+
+    def __init__(self, *lines):
+        self._lines = lines
+
+    def __len__(self):
+        return 1
+
+    def rawdict(self, pno):
+        return {"blocks": [{"lines": [
+            {"spans": [{"font": f, "chars": [{"c": c} for c in t]} for f, t in line]}
+            for line in self._lines]}]}
+
+
+def test_symbol_letters_restore_by_context():
+    from corpus.repair import symbol_letters as tool
+    doc = _FakeDoc([("AdvOT1ef757c0", "the MSWD "), ("ABCDEF+AdvP4C4E74", "¼"), ("AdvOT1ef757c0", " 0.2 for the")],
+                   [("AdvOT1ef757c0", "at 45"), ("AdvPi1", "8"), ("AdvOT1ef757c0", "57 north of the road")])
+    md = "Text with the MSWD ¼ 0.2 for the age, and 18 samples at 458 57 north of the road.\n"
+    new, res = tool.repair(doc, md, "k")
+    assert new == "Text with the MSWD = 0.2 for the age, and 18 samples at 45° 57 north of the road.\n"
+    assert res["applied"] == 2
+    again, res = tool.repair(doc, new, "k")
+    assert again == new and res["already"] == 2
+
+
+def test_symbol_letters_leave_a_font_that_sets_words():
+    from corpus.repair import symbol_letters as tool
+    doc = _FakeDoc([("AdvPi1", "Section 8 of the text")])
+    md = "Section 8 of the text\n"
+    assert tool.repair(doc, md, "k")[0] == md
+
+
+def test_symbol_letters_double_prime():
+    from corpus.repair import symbol_letters as tool
+    doc = _FakeDoc([("AdvOT1", "Site (44"), ("AdvP4C4E74", "0"), ("AdvOT1", "48,6"),
+                    ("AdvP4C4E74", "00"), ("AdvOT1", " S) on the road")])
+    md = "Site (440 48,600 S) on the road\n"
+    assert tool.repair(doc, md, "k")[0] == "Site (44′ 48,6″ S) on the road\n"
+
+
+def test_page_breaks_split_a_paragraph_at_the_printed_break():
+    import repair_page_breaks as tool
+    md = ("<!-- page 1 -->\n\nEarlier text on the first page that is long enough to count here.\n\n"
+          "<!-- page 2 -->\n\nThe paragraph starts at the foot of page one and then it carries on over the break "
+          "onto the second page where it ends.\n\nA second page paragraph that is also long enough.\n")
+    pages = [tool.sq("Earlier text on the first page that is long enough to count here. "
+                     "The paragraph starts at the foot of page one and then it"),
+             tool.sq("carries on over the break onto the second page where it ends. "
+                     "A second page paragraph that is also long enough.")]
+    lines, blocks = tool.blocks(md)
+    n, s, e = blocks[1]
+    moves, status = tool.plan(lines, s, e, pages[0], pages[1], pages, 1)
+    assert status == "ok" and moves[0][1] == 12
+    new, texts = tool.apply_moves(lines, s, moves)
+    out = tool.finish(new)
+    assert "and then it\n\n<!-- page 2 -->\n\ncarries on over the break" in out
+    assert texts == ["The paragraph starts at the foot of page one and then it"]

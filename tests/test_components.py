@@ -153,7 +153,7 @@ def test_intake_discover_helpers():
 def test_repair_registry_modules_expose_repair():
     from corpus.repair import REPAIRS
     names = [r.name for r in REPAIRS]
-    assert names == ["dash", "symbols", "accents", "diaeresis", "ref_links", "fused_calls"]
+    assert names == ["dash", "symbols", "symbol_letters", "accents", "diaeresis", "ref_links", "fused_calls"]
     for r in REPAIRS:
         assert callable(r.load().repair) and callable(r.load().main)
 
