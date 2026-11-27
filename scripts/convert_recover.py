@@ -70,8 +70,8 @@ BLOCKED = "[FILTER-BLOCKED PIECE]"
 # A strip holding only a running head or white space comes back as a remark
 # about the image ("No body text is visible in this fragment..."), not as text.
 REMARK = re.compile(
-    r"(?i)\b(in this fragment|the fragment (contains|shows|is)|looking at the fragment|"
-    r"only text in this fragment|nothing to transcribe|no body text)\b"
+    r"(?i)\b((in|from) this fragment|the fragment (contains|shows|is)|looking at the fragment|"
+    r"only text in this fragment|nothing to transcribe|no body text|can't transcribe|cannot transcribe)\b"
 )
 
 
