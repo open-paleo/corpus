@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import unicodedata
 
 from corpus.pdf.text import open_pdf
 from corpus.config import PDF_DIR, MD_DIR
@@ -202,17 +203,43 @@ def process(key: str, apply: bool, quiet: bool) -> tuple[int, int]:
     return res["applied"], res["missed"]
 
 
+STRAY = "~^`´¨"          # accent marks marker leaves in the markdown
+
+
+def _base(c: str) -> str:
+    """A character without its combining marks ('é' -> 'e')."""
+    return unicodedata.normalize("NFD", c)[0] if c else c
+
+
+def squash(s: str):
+    """Letters and digits of `s`, accents stripped, with an index back to `s`.
+    Stray marks, control characters, whitespace and markdown punctuation are
+    left out, so the PDF's line and the markdown compare on what both hold."""
+    out, idx = [], []
+    for i, ch in enumerate(s):
+        b = _base(ch)
+        if b.isalnum():
+            out.append(b.lower())
+            idx.append(i)
+    return "".join(out), idx
+
+
 def repair(doc, md: str, key: str, *, quiet: bool = False) -> tuple[str, dict]:
     """The repaired markdown and {"applied", "missed"}, from an open PDF and
-    its markdown. No file I/O."""
+    its markdown. No file I/O.
+
+    Each accented word is placed by its context: the letters before and after
+    it on its PDF line must match the markdown at exactly one place, and only
+    that place is edited. (An earlier version replaced every occurrence of the
+    word in the file, so one printed 'México' in an address turned 52
+    unaccented 'Mexico' into 'México'.)"""
     found = sites(doc, key)
     if not found:
         return md, {"applied": 0, "missed": 0}
-    new = md
+    sq_md, idx_md = squash(md)
+    edits: dict[int, tuple[int, str, dict]] = {}
     applied = missed = 0
-    seen: set[str] = set()
 
-    # Group by token so a word carrying several accents is fixed in one edit.
     by_token: dict[tuple[int, int, int], list[dict]] = {}
     for s in found:
         lo, hi = token_around(s["line"], [s["accent_at"], s["base_at"]])
@@ -220,9 +247,6 @@ def repair(doc, md: str, key: str, *, quiet: bool = False) -> tuple[str, dict]:
 
     for (_, lo, hi), group in by_token.items():
         flat = group[0]["line"]
-        # Trim punctuation off both ends: marker rewrites what sits beside a
-        # word ("Biológicas," in the PDF is "Biologicas (" in the markdown), so
-        # matching the whole token fails on the comma. The word core is stable.
         marked = {s["accent_at"] for s in group} | {s["base_at"] for s in group}
         while lo < hi and not flat[lo][0].isalnum() and lo not in marked:
             lo += 1
@@ -231,57 +255,48 @@ def repair(doc, md: str, key: str, *, quiet: bool = False) -> tuple[str, dict]:
         chars = [c for c, _, _ in flat[lo:hi]]
         repl = {s["base_at"] - lo: s["made"] for s in group}
         drop = {s["accent_at"] - lo for s in group}
-        raw = "".join(chars)
         fixed = "".join(repl.get(i, c) for i, c in enumerate(chars) if i not in drop)
-        if raw == fixed:
-            continue
-
-        # marker is inconsistent about the stray accent: it drops the control
-        # characters outright, keeps the printable ones, and sometimes pads
-        # those with spaces ("Ci ~ ^encia"). One pattern covers every reading —
-        # each accent optional, with optional space either side.
-        # A word broken across a line leaves a fragment ("Neu-/quen"), and
-        # without the word-boundary guards below such a fragment matches inside
-        # unrelated words. The boundaries do the real work; this only rejects
-        # something too small to bound meaningfully.
-        # Keep it at 3, not higher: "São" and "Ávila" are three and five.
-        if sum(c.isalnum() for c in chars) < 3:
+        word, _ = squash(fixed)
+        if len(word) < 3:
             missed += 1
             continue
-        parts = [r"(?<![0-9A-Za-zÀ-ÿ])"]
-        for i, c in enumerate(chars):
-            if i in drop:
-                # marker renders the same dropped accent three different ways —
-                # gone, a bare space, or a stray mark that is not even the right
-                # accent ("Universitária" comes through as "Universit ~ aria",
-                # an acute rendered as a tilde) — so accept any of them.
-                # ...and they pile up: "Ci ~ ^encia" carries two, one of them
-                # displaced from the previous word. Match a run, not just one.
-                parts.append(r"[\s~^`´¨\x01-\x08]*")
-            else:
-                parts.append(re.escape(c))
-        parts.append(r"(?![0-9A-Za-zÀ-ÿ])")
-        pat = re.compile("".join(parts))
-        if pat.pattern in seen:
+        left, _ = squash("".join(c for c, _, _ in flat[:lo]))
+        right, _ = squash("".join(c for c, _, _ in flat[hi:]))
+        pos = None
+        for wl, wr in ((16, 16), (10, 10), (6, 6), (12, 0), (0, 12)):
+            l, r = left[-wl:] if wl else "", right[:wr]
+            if len(l) + len(r) < 6:
+                continue
+            hits = [m.start() + len(l) for m in re.finditer(re.escape(l + word + r), sq_md)]
+            if len(hits) == 1:
+                pos = hits[0]
+                break
+        if pos is None:
+            missed += 1
+            if not quiet:
+                print(f"  ? {key}: no unique place in the markdown for {fixed!r}")
             continue
-        seen.add(pat.pattern)
+        start, end = idx_md[pos], idx_md[pos + len(word) - 1] + 1
+        if md[start:end] == fixed or start in edits:
+            continue
+        # Only letters, marks and the spaces or hyphen marker left inside a
+        # word may lie between its first and last letter; anything else (a
+        # link bracket, "f[acies") means the edit would break markup.
+        if any(not (_base(c).isalnum() or c.isspace() or c in STRAY + "-" or ord(c) < 32)
+               for c in md[start:end]):
+            missed += 1
+            if not quiet:
+                print(f"  ? {key}: {md[start:end]!r} crosses markup; left alone")
+            continue
+        edits[start] = (end, fixed, group[0])
 
-        hits = [m for m in pat.finditer(new) if m.group(0) != fixed]
-        if not hits:
-            if fixed not in new:
-                missed += 1
-                if not quiet:
-                    print(f"  ? {key}: not in markdown — {raw[:44]!r}")
-            continue
-        for m in reversed(hits):
-            new = new[:m.start()] + fixed + new[m.end():]
-            applied += 1
+    new = md
+    for start in sorted(edits, reverse=True):
+        end, fixed, s = edits[start]
         if not quiet:
-            ov = min(s["overlap"] for s in group)
-            print(f"  {key}  x{len(hits)}  (overlap {ov:.2f}pt)")
-            print(f"      -  {hits[0].group(0)}")
-            print(f"      +  {fixed}")
-
+            print(f"  {key} p{s['page']}  {new[start:end]!r} -> {fixed!r}")
+        new = new[:start] + fixed + new[end:]
+        applied += 1
     return new, {"applied": applied, "missed": missed}
 
 

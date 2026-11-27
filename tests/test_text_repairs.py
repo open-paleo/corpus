@@ -155,3 +155,16 @@ def test_page_breaks_split_a_paragraph_at_the_printed_break():
     out = tool.finish(new)
     assert "and then it\n\n<!-- page 2 -->\n\ncarries on over the break" in out
     assert texts == ["The paragraph starts at the foot of page one and then it"]
+
+
+def test_accents_edit_only_the_occurrence_the_pdf_accents(monkeypatch):
+    """One printed 'México' must not accent every 'Mexico' in the file."""
+    from corpus.repair import accents as tool
+    line = [(c, "Body", (0, 0, 1, 1)) for c in "Universidad de M\x01exico, 04510"]
+    site = {"page": 1, "line": line, "accent_at": 16, "base_at": 17, "char": "\x01", "base": "e",
+            "made": "é", "overlap": 3.0}
+    monkeypatch.setattr(tool, "sites", lambda doc, key: [site])
+    md = "Fossils are common in Mexico.\n\nUniversidad de Mexico, 04510\n"
+    new, res = tool.repair(None, md, "k", quiet=True)
+    assert new == "Fossils are common in Mexico.\n\nUniversidad de México, 04510\n"
+    assert res["applied"] == 1
